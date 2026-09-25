@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spelarutveckling – Lilla Torg FF</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#267DC1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Spelarutveckling">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --blue: #267DC1;
+    --blue-dark: #164B78;
+    --tan: #AEA57A;
+    --tan-dark: #8a805a;
+    --tan-light: #F1EEE3;
+    --tan-lighter: #F8F6EF;
+    --black: #14150F;
+
+    --bg: var(--tan-lighter);
+    --surface: #ffffff;
+    --surface-2: var(--tan-light);
+    --text: var(--black);
+    --text-soft: #5B5A4E;
+    --border: #E2DDC9;
+    --accent: var(--blue);
+    --accent-dark: var(--blue-dark);
+    --danger: #B23A2E;
+    --danger-bg: #FBE9E6;
+    --good: #1a7a3d;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14170f; --surface: #1d2117; --surface-2: #262a1f;
+      --text: #f3f1e6; --text-soft: #c3c0ac; --border: #33372a;
+      --accent: #5FA3DE; --accent-dark: #8FC0EA; --tan: #c9bd8d; --tan-dark: #d8cf9f;
+      --danger: #e57468; --danger-bg: #3a221f; --good: #6fd095;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14170f; --surface: #1d2117; --surface-2: #262a1f;
+    --text: #f3f1e6; --text-soft: #c3c0ac; --border: #33372a;
+    --accent: #5FA3DE; --accent-dark: #8FC0EA; --tan: #c9bd8d; --tan-dark: #d8cf9f;
+    --danger: #e57468; --danger-bg: #3a221f; --good: #6fd095;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  header.hero { text-align: center; padding: 4px 10px 20px; }
+  header.hero img { width: 82px; height: auto; margin: 0 auto 8px; display: block; }
+  header.hero .kicker { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: var(--text-soft); font-weight: 700; }
+  h1 { font-size: clamp(22px, 5vw, 28px); margin: 2px 0 6px; color: var(--accent-dark); }
+  .tagline { color: var(--text-soft); font-size: 14.5px; max-width: 480px; margin: 0 auto; }
+
+  .status-bar { text-align: center; font-size: 13px; color: var(--text-soft); margin-bottom: 14px; min-height: 18px; }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 18px; }
+  .pill { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 999px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .pill.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .pill .count { background: rgba(0,0,0,0.08); border-radius: 999px; padding: 1px 7px; font-size: 11.5px; }
+  .pill.active .count { background: rgba(255,255,255,0.25); }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 18px; }
+  .controls-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .controls-row input[type=text] { flex: 1 1 200px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 15px; }
+  input, select, textarea { font-family: inherit; }
+  button { font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 10px; padding: 10px 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  button.ghost { background: transparent; }
+  button.small { padding: 6px 10px; font-size: 13px; }
+  button:hover { filter: brightness(0.97); }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  .secondary-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  textarea#pasteArea { width: 100%; min-height: 90px; margin-top: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; padding: 10px 12px; display: none; }
+  .paste-actions { display: none; gap: 8px; margin-top: 8px; }
+
+  .empty-state { text-align: center; color: var(--text-soft); padding: 30px 12px; border: 1px dashed var(--border); border-radius: var(--radius); }
+
+  .player-list { display: flex; flex-direction: column; gap: 10px; }
+  .player-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; }
+  .player-row:hover { border-color: var(--accent); }
+  .player-row .name { font-size: 16px; font-weight: 700; }
+  .player-row .meta { font-size: 12.5px; color: var(--text-soft); margin-top: 2px; }
+  .player-row .arrow { color: var(--text-soft); font-size: 18px; }
+  .row-actions { display: flex; gap: 6px; align-items: center; }
+  button.icon-btn { padding: 6px 9px; border-radius: 8px; line-height: 1; font-size: 14px; }
+  button.icon-btn.danger { color: var(--danger); border-color: var(--danger-bg); background: var(--danger-bg); }
+
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-dark); font-weight: 700; background: none; border: none; padding: 0; margin-bottom: 14px; cursor: pointer; font-size: 14.5px; }
+
+  .detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .detail-name { font-size: 24px; font-weight: 800; }
+  .detail-sub { color: var(--text-soft); font-size: 13.5px; margin-top: 2px; }
+
+  .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+  .field-grid label { font-size: 12.5px; color: var(--text-soft); display: block; margin-bottom: 4px; }
+  .field-grid input, .field-grid select { width: 100%; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14.5px; }
+
+  .cat-group-label { text-transform: uppercase; letter-spacing: 0.05em; font-size: 12.5px; font-weight: 800; color: var(--accent-dark); margin: 18px 0 8px; }
+  .rating-item { margin-bottom: 12px; }
+  .rating-item .item-label { font-size: 14px; margin-bottom: 6px; }
+  .num-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .num-btn { flex: 1 1 30px; min-width: 30px; padding: 8px 0; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-weight: 700; text-align: center; }
+  .num-btn.selected { background: var(--accent); border-color: var(--accent); color: white; }
+  .num-btn.skip { flex: 1 1 68px; font-size: 12px; border-style: dashed; color: var(--text-soft); }
+  .num-btn.skip.selected { background: var(--text-soft); border-color: var(--text-soft); color: var(--surface); border-style: solid; }
+
+  .comment-box { width: 100%; min-height: 70px; margin-top: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; }
+
+  .history-entry { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+  .history-entry .h-top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 13.5px; }
+  .history-entry .h-date { font-weight: 700; }
+  .history-entry .h-occasion { color: var(--text-soft); }
+  .history-entry .h-avgs { font-size: 12.5px; color: var(--text-soft); margin-top: 6px; }
+  .history-entry .h-comment { font-size: 13px; margin-top: 6px; font-style: italic; color: var(--text-soft); }
+  .history-entry .h-detail { display: none; margin-top: 8px; font-size: 12.5px; }
+  .history-entry .h-detail.open { display: block; }
+  .history-entry .h-detail-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed var(--border); }
+  .history-entry .h-detail-item:last-child { border-bottom: none; }
+
+  footer.page-footer { text-align: center; color: var(--text-soft); font-size: 12.5px; margin-top: 20px; }
+
+  .chart-caption { text-align: center; font-size: 12px; color: var(--text-soft); margin-top: 6px; }
+  .legend-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; font-size: 12px; color: var(--text-soft); margin-top: 8px; }
+  .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+  h2.section-title { font-size: 16px; margin: 0 0 10px; }
+
+  .nav-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; }
+  .nav-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); font-size: 14px; font-weight: 700; padding: 9px 18px; border-radius: 999px; cursor: pointer; }
+  .nav-tab.active { background: var(--black); color: white; border-color: var(--black); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .nav-tab.active { background: var(--accent); border-color: var(--accent); } }
+  :root[data-theme="dark"] .nav-tab.active { background: var(--accent); border-color: var(--accent); }
+
+  .avail-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .checklist { display: flex; flex-direction: column; gap: 2px; max-height: 340px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 6px; }
+  .check-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; font-size: 14.5px; }
+  .check-row:hover { background: var(--surface-2); }
+  .check-row input { width: 17px; height: 17px; accent-color: var(--accent); }
+  .check-row .cr-pos { color: var(--text-soft); font-size: 12px; margin-left: auto; }
+
+  .team-count-row { display: flex; gap: 8px; align-items: center; margin: 14px 0; }
+  .team-count-row button.count-btn { min-width: 42px; }
+  .team-count-row button.count-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .team-panel { margin-bottom: 20px; }
+  .team-grid-plain { display: flex; flex-direction: column; gap: 14px; }
+  .training-group-card { margin-bottom: 0; }
+  .team-panel-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .team-dot { display: inline-block; width: 13px; height: 13px; border-radius: 50%; }
+  .team-summary { font-size: 12.5px; color: var(--text-soft); }
+
+  .pitch {
+    background: linear-gradient(180deg, #2e8a44, #2a7d3f);
+    border-radius: 16px; padding: 18px 10px; position: relative;
+    display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+    min-height: 420px; overflow: hidden;
+  }
+  .pitch::before, .pitch::after {
+    content: ""; position: absolute; left: 50%; transform: translateX(-50%);
+    width: 46%; height: 15%; border: 2px solid rgba(255,255,255,0.35); border-radius: 4px;
+  }
+  .pitch::before { top: 0; border-top: none; }
+  .pitch::after { bottom: 0; border-bottom: none; }
+  .pitch-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 90px; height: 90px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
+  }
+  .pitch-row { display: flex; justify-content: space-evenly; gap: 8px; flex-wrap: wrap; position: relative; z-index: 1; }
+  .pitch-pill {
+    background: #f4f6f0; border-radius: 14px; padding: 9px 12px; text-align: center;
+    min-width: 74px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    border: 2px solid transparent;
+  }
+  .pitch-pill.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(38,125,193,0.3); }
+  .pitch-pill .pp-name { font-weight: 700; font-size: 13.5px; color: #14150F; }
+  .pitch-pill .pp-role { font-size: 11px; color: #5B5A4E; margin-top: 1px; }
+
+  .subs-title { font-size: 13px; font-weight: 700; color: var(--text-soft); margin: 14px 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .subs-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sub-pill {
+    border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px;
+    padding: 7px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; color: var(--text);
+  }
+  .sub-pill.selected { border-color: var(--accent); background: var(--accent); color: white; }
+  .sub-pill-wrap {
+    display: inline-flex; align-items: center; gap: 2px;
+    border: 1.5px solid var(--border); border-radius: 999px; background: var(--surface);
+    padding: 3px 3px 3px 4px;
+  }
+  .sub-pill-wrap.selected { border-color: var(--accent); background: rgba(38,125,193,0.1); }
+  .sub-pill-name {
+    border: none; background: none; color: var(--text); font-size: 13.5px; font-weight: 600;
+    padding: 5px 6px; cursor: pointer; border-radius: 999px;
+  }
+  .sub-pill-name:hover { background: var(--surface-2); }
+  .sub-pill-swap {
+    border: none; background: var(--surface-2); color: var(--text-soft); font-size: 13px;
+    width: 26px; height: 26px; border-radius: 50%; cursor: pointer; flex: none;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .sub-pill-wrap.selected .sub-pill-swap { background: var(--accent); color: white; }
+  .swap-hint { font-size: 12.5px; color: var(--text-soft); text-align: center; margin: 10px 0 16px; }
+  #teamsTextArea { width: 100%; min-height: 160px; margin-top: 10px; font-family: monospace; font-size: 12.5px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+
+  @media (max-width: 420px) {
+    .num-btn { font-size: 13px; padding: 7px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header class="hero">
+    <img src="data:image/png;base64,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" alt="Lilla Torg FF">
+    <div class="kicker">Träningsdagbok</div>
+    <h1>Spelarutveckling</h1>
+    <p class="tagline">Följ varje spelares egen resa – inte jämförelser mellan barnen.</p>
+  </header>
+  <div class="status-bar" id="statusBar">Laddar…</div>
+  <div id="main"></div>
+  <footer class="page-footer">Data sparas automatiskt och delas mellan tränare som öppnar sidan.</footer>
+</div>
+
+<script>
+(function () {
+  var GROUPS = ["Ingen grupp", "Grupp A", "Grupp B", "Grupp C", "Nybörjare"];
+  var POSITIONS = ["", "Målvakt", "Back", "Vänstermittfältare", "Centralmittfältare", "Högermittfältare", "Anfallare"];
+  var MIDFIELD_POSITIONS = ["Vänstermittfältare", "Centralmittfältare", "Högermittfältare"];
+  function positionCategory(pos) {
+    return MIDFIELD_POSITIONS.indexOf(pos) !== -1 ? "Mittfältare" : pos;
+  }
+  var SHORT_ROLE = { "Vänstermittfältare": "V. mittfält.", "Centralmittfältare": "C. mittfält.", "Högermittfältare": "H. mittfält." };
+  function shortRole(role) { return SHORT_ROLE[role] || role; }
+  var FOOT_OPTIONS = ["", "Höger", "Vänster", "Båda"];
+  var CATEGORY_GROUPS = [
+    { key: "spelforstaelse", label: "Spelförståelse", items: [
+      { key: "ledig_yta", label: "Hitta ledig yta (inte klumpa ihop sig)" },
+      { key: "spana", label: "Spana med blicken innan mottagning" },
+      { key: "positionering", label: "Positionering" }
+    ]},
+    { key: "teknik", label: "Boll & teknik", items: [
+      { key: "passningsspel", label: "Passningar" },
+      { key: "forsta_touch", label: "Första touch/mottagning" },
+      { key: "dribblingar", label: "Dribblingar/bollkontroll" },
+      { key: "avslut", label: "Avslut/skott" },
+      { key: "svagare_foten", label: "Svagare foten" }
+    ]},
+    { key: "laganda", label: "Attityd & laganda", items: [
+      { key: "fokus", label: "Fokus & lyssna på instruktioner" },
+      { key: "lagkompis", label: "Vara en bra lagkompis & peppa andra" },
+      { key: "kommunikation", label: "Kommunikation på planen" }
+    ]},
+    { key: "fysik", label: "Fysik & rörelse", items: [
+      { key: "uthallighet", label: "Kondition" },
+      { key: "koordination", label: "Koordination/bollkänsla i rörelse" },
+      { key: "balans", label: "Balans och styrka i närkamp" }
+    ]},
+    { key: "malvakt", label: "Målvaktsspel", items: [
+      { key: "gk_bollfangst", label: "Bollfångst och grundteknik" },
+      { key: "gk_reflexer", label: "Reflexer & reaktion på skott" },
+      { key: "gk_positionering", label: "Positionering i mål" },
+      { key: "gk_utspel", label: "Utspel (kasta/sparka igång anfall)" },
+      { key: "gk_mod", label: "Mod att komma ut och möta anfallare" },
+      { key: "gk_dirigera", label: "Dirigera och kommunicera med försvaret" }
+    ]}
+  ];
+  var ALL_ITEM_KEYS = [];
+  CATEGORY_GROUPS.forEach(function (g) { g.items.forEach(function (it) { ALL_ITEM_KEYS.push(it.key); }); });
+
+  // Vikter per position (7 mot 7) – baseras på vilka attribut som är mest avgörande för respektive roll.
+  var POSITION_PROFILES = {
+    "Back": { positionering: 3, balans: 2, spana: 2, passningsspel: 1, fokus: 1 },
+    "Mittfältare": { passningsspel: 3, spana: 2, forsta_touch: 2, ledig_yta: 2, uthallighet: 2, kommunikation: 1, dribblingar: 1 },
+    "Anfallare": { avslut: 3, dribblingar: 2, ledig_yta: 2, forsta_touch: 2, koordination: 1, svagare_foten: 1 },
+    "Målvakt": { gk_bollfangst: 3, gk_reflexer: 3, gk_positionering: 3, gk_utspel: 2, gk_mod: 2, gk_dirigera: 2, fokus: 1, kommunikation: 1 }
+  };
+
+  function itemAverages(player) {
+    var sums = {}, counts = {};
+    (player.assessments || []).forEach(function (a) {
+      ALL_ITEM_KEYS.forEach(function (k) {
+        var v = a.ratings ? a.ratings[k] : undefined;
+        if (typeof v === "number") { sums[k] = (sums[k] || 0) + v; counts[k] = (counts[k] || 0) + 1; }
+      });
+    });
+    var avgs = {};
+    ALL_ITEM_KEYS.forEach(function (k) { avgs[k] = counts[k] ? sums[k] / counts[k] : null; });
+    return avgs;
+  }
+
+  function positionScores(player) {
+    var avgs = itemAverages(player);
+    var scores = {};
+    Object.keys(POSITION_PROFILES).forEach(function (pos) {
+      var profile = POSITION_PROFILES[pos];
+      var wsum = 0, vsum = 0, covered = 0;
+      Object.keys(profile).forEach(function (key) {
+        var w = profile[key], v = avgs[key];
+        if (v !== null) { wsum += w; vsum += w * v; covered++; }
+      });
+      var totalItems = Object.keys(profile).length;
+      scores[pos] = wsum ? { value: vsum / wsum, coverage: covered / totalItems } : null;
+    });
+    return scores;
+  }
+  var MAX_ASSESSMENTS = 40;
+  var RATING_MAX = 10;
+  var CHART_COLORS = { spelforstaelse: "#267DC1", teknik: "#8a805a", laganda: "#1a7a3d", fysik: "#C9752F", malvakt: "#6B4C8A" };
+
+  var players = [];
+  var currentFilter = "Alla";
+  var view = { mode: "squad" };
+  var newAssessmentOpen = false;
+  var draftAssessment = null;
+  var openHistoryIds = {};
+  var confirmDeletePlayerId = null;
+  var confirmDeleteAssessmentKey = null;
+  var renamingPlayerId = null;
+  var renameDraft = "";
+  var teamSelected = {}; // playerId -> bool
+  var teamCount = 3;
+  var teamResult = null; // array of {starters:[{role,player}], subs:[player,...]}
+  var teamsTextOpen = false;
+  var selectedSlotRef = null; // {teamIdx, kind:'starter'|'sub', idx}
+  var trainingSelected = {}; // playerId -> bool (present today)
+  var trainingGroups = null; // array of 4 player arrays
+  var trainingSelectedRef = null; // {groupIdx, idx}
+  var trainingTextOpen = false;
+  var TRAINING_GROUP_COUNT = 4;
+  var trainingCoachNames = ["", "", "", ""];
+  var navigateBackTo = null; // where the detail view's back-link should return to
+  var FORMATION_SLOTS = [
+    { role: "Anfallare", row: 1, count: 1 },
+    { role: "Vänstermittfältare", row: 2, count: 1 },
+    { role: "Centralmittfältare", row: 2, count: 1 },
+    { role: "Högermittfältare", row: 2, count: 1 },
+    { role: "Back", row: 3, count: 2 },
+    { role: "Målvakt", row: 4, count: 1 }
+  ];
+  var TEAM_STYLES = [
+    { name: "Blå laget", color: "#267DC1" },
+    { name: "Gula laget", color: "#C9A227" },
+    { name: "Gröna laget", color: "#1a7a3d" },
+    { name: "Lila laget", color: "#6B4C8A" }
+  ];
+  var db = null, downloads = null, storageMode = "none";
+
+  var statusBar = document.getElementById("statusBar");
+  var mainEl = document.getElementById("main");
+
+  function todayIso() {
+    var d = new Date();
+    var mm = String(d.getMonth() + 1).padStart(2, "0");
+    var dd = String(d.getDate()).padStart(2, "0");
+    return d.getFullYear() + "-" + mm + "-" + dd;
+  }
+  function fmtDate(iso) {
+    try {
+      var d = new Date(iso + "T00:00:00");
+      return d.toLocaleDateString("sv-SE", { day: "numeric", month: "short", year: "numeric" });
+    } catch (e) { return iso; }
+  }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function el(tag, opts) {
+    var e = document.createElement(tag);
+    opts = opts || {};
+    if (opts.className) e.className = opts.className;
+    if (opts.text !== undefined) e.textContent = opts.text;
+    if (opts.html !== undefined) e.innerHTML = opts.html;
+    if (opts.attrs) for (var k in opts.attrs) e.setAttribute(k, opts.attrs[k]);
+    return e;
+  }
+
+  function localKey() { return "spelarutveckling_players_v2"; }
+  function loadLocal() {
+    try {
+      var raw = localStorage.getItem(localKey());
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { return []; }
+  }
+  function saveLocal() { try { localStorage.setItem(localKey(), JSON.stringify(players)); } catch (e) {} }
+
+  function setStatus(msg) { statusBar.textContent = msg || ""; }
+
+  function defaultPlayerBody(name) {
+    return { name: name, group: "Ingen grupp", position: "", preferredFoot: "", assessments: [], createdAt: new Date().toISOString() };
+  }
+  function normalizePlayer(id, data) {
+    data = data || {};
+    var ratingsShim = null;
+    if (!Array.isArray(data.assessments) && data.ratings) {
+      ratingsShim = data.ratings;
+    }
+    return {
+      id: id,
+      name: data.name || "",
+      group: GROUPS.indexOf(data.group) !== -1 ? data.group : "Ingen grupp",
+      position: POSITIONS.indexOf(data.position) !== -1 ? data.position : "",
+      preferredFoot: FOOT_OPTIONS.indexOf(data.preferredFoot) !== -1 ? data.preferredFoot : "",
+      assessments: Array.isArray(data.assessments) ? data.assessments : [],
+      _legacyRatings: ratingsShim
+    };
+  }
+
+  function overallSkill(player) {
+    var avgs = itemAverages(player);
+    var sum = 0, n = 0;
+    ALL_ITEM_KEYS.forEach(function (k) { if (avgs[k] !== null) { sum += avgs[k]; n++; } });
+    return n ? sum / n : 3; // neutral default for players with no assessments yet
+  }
+
+  function assignFormation(teamPlayers) {
+    var pool = teamPlayers.slice();
+    var starters = [];
+    FORMATION_SLOTS.forEach(function (slot) {
+      for (var i = 0; i < slot.count; i++) {
+        var candidates = pool.filter(function (p) { return p.position === slot.role; });
+        candidates.sort(function (a, b) { return overallSkill(b) - overallSkill(a); });
+        var chosen = candidates[0];
+        if (!chosen && pool.length) {
+          var rest = pool.slice().sort(function (a, b) { return overallSkill(b) - overallSkill(a); });
+          chosen = rest[0];
+        }
+        if (chosen) {
+          starters.push({ role: slot.role, row: slot.row, player: chosen });
+          pool.splice(pool.indexOf(chosen), 1);
+        } else {
+          starters.push({ role: slot.role, row: slot.row, player: null });
+        }
+      }
+    });
+    return { starters: starters, subs: pool };
+  }
+
+  function teamAllPlayers(team) {
+    return team.starters.map(function (s) { return s.player; }).filter(Boolean).concat(team.subs.filter(Boolean));
+  }
+  function teamAvgSkill(team) {
+    var all = teamAllPlayers(team);
+    if (!all.length) return 0;
+    return all.reduce(function (s, p) { return s + overallSkill(p); }, 0) / all.length;
+  }
+
+  function balancedGroups(playerList, count) {
+    // Group by position so each group gets a fair share of each role, then
+    // snake-draft by skill within each group so average level stays balanced.
+    var buckets = {};
+    playerList.forEach(function (p) {
+      var key = p.position || "Ospecificerad";
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push(p);
+    });
+    var groups = [];
+    for (var i = 0; i < count; i++) groups.push([]);
+
+    Object.keys(buckets).forEach(function (key) {
+      var group = buckets[key].slice();
+      // shuffle first for tie-breaking variety, then sort by skill desc (stable-ish)
+      group.sort(function () { return Math.random() - 0.5; });
+      group.sort(function (a, b) { return overallSkill(b) - overallSkill(a); });
+      var dir = 1, idx = 0;
+      group.forEach(function (p) {
+        groups[idx].push(p);
+        idx += dir;
+        if (idx === count) { idx = count - 1; dir = -1; }
+        else if (idx < 0) { idx = 0; dir = 1; }
+      });
+    });
+    return groups;
+  }
+  function generateTeams(playerList, count) {
+    return balancedGroups(playerList, count).map(function (t) { return assignFormation(t); });
+  }
+  function generateTrainingGroups(playerList, count) {
+    return balancedGroups(playerList, count);
+  }
+
+  // ---------- slot swap helpers ----------
+  function isSlotSelected(ref) {
+    return selectedSlotRef && selectedSlotRef.teamIdx === ref.teamIdx && selectedSlotRef.kind === ref.kind && selectedSlotRef.idx === ref.idx;
+  }
+  function getSlotPlayer(ref) {
+    var team = teamResult[ref.teamIdx];
+    return ref.kind === "starter" ? team.starters[ref.idx].player : team.subs[ref.idx];
+  }
+  function setSlotPlayer(ref, player) {
+    var team = teamResult[ref.teamIdx];
+    if (ref.kind === "starter") team.starters[ref.idx].player = player;
+    else team.subs[ref.idx] = player;
+  }
+  function handleSlotClick(ref) {
+    if (!selectedSlotRef) { selectedSlotRef = ref; render(); return; }
+    if (isSlotSelected(ref)) { selectedSlotRef = null; render(); return; }
+    var a = getSlotPlayer(selectedSlotRef), b = getSlotPlayer(ref);
+    setSlotPlayer(selectedSlotRef, b);
+    setSlotPlayer(ref, a);
+    selectedSlotRef = null;
+    render();
+  }
+
+  function renderTeams() {
+    mainEl.appendChild(el("h2", { className: "section-title", text: "Laguttagning (7 mot 7)" }));
+    mainEl.appendChild(el("p", { text: "Välj vilka spelare som är med denna helg, hur många lag ni vill dela in dem i, och skapa en balanserad uppdelning utifrån bedömd nivå och position.", attrs: { style: "color:var(--text-soft);font-size:14px;margin-top:-6px;" } }));
+
+    var panel = el("div", { className: "panel" });
+    var availRow = el("div", { className: "avail-controls" });
+    var selectAllBtn = el("button", { className: "small", text: "Markera alla" });
+    var selectNoneBtn = el("button", { className: "small", text: "Avmarkera alla" });
+    var countLabel = el("span", { text: selectedCount() + " av " + players.length + " valda", attrs: { style: "font-size:13px;color:var(--text-soft);margin-left:4px;" } });
+    selectAllBtn.addEventListener("click", function () { players.forEach(function (p) { teamSelected[p.id] = true; }); render(); });
+    selectNoneBtn.addEventListener("click", function () { teamSelected = {}; render(); });
+    availRow.appendChild(selectAllBtn); availRow.appendChild(selectNoneBtn); availRow.appendChild(countLabel);
+    panel.appendChild(availRow);
+
+    var groupQuickRow = el("div", { className: "avail-controls" });
+    GROUPS.forEach(function (g) {
+      var groupPlayers = players.filter(function (p) { return p.group === g; });
+      if (!groupPlayers.length) return;
+      var qb = el("button", { className: "small ghost", text: "+ " + g });
+      qb.addEventListener("click", function () { groupPlayers.forEach(function (p) { teamSelected[p.id] = true; }); render(); });
+      groupQuickRow.appendChild(qb);
+    });
+    panel.appendChild(groupQuickRow);
+
+    var list = el("div", { className: "checklist" });
+    players.slice().sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "sv"); }).forEach(function (p) {
+      var row = el("label", { className: "check-row" });
+      var cb = el("input", { attrs: { type: "checkbox" } });
+      cb.checked = !!teamSelected[p.id];
+      cb.addEventListener("change", function () { teamSelected[p.id] = cb.checked; countLabel.textContent = selectedCount() + " av " + players.length + " valda"; });
+      row.appendChild(cb);
+      row.appendChild(el("span", { text: p.name }));
+      row.appendChild(el("span", { className: "cr-pos", text: p.position || "–" }));
+      list.appendChild(row);
+    });
+    panel.appendChild(list);
+    mainEl.appendChild(panel);
+
+    var countPanel = el("div", { className: "panel" });
+    countPanel.appendChild(el("h2", { className: "section-title", text: "Antal lag", attrs: { style: "margin-bottom:0;" } }));
+    var countRow = el("div", { className: "team-count-row" });
+    var countRow = el("div", { className: "team-count-row" });
+    [1, 2, 3, 4].forEach(function (n) {
+      var b = el("button", { className: "count-btn" + (teamCount === n ? " active" : ""), text: String(n) });
+      b.addEventListener("click", function () { teamCount = n; render(); });
+      countRow.appendChild(b);
+    });
+    countPanel.appendChild(countRow);
+
+    var genBtn = el("button", { className: "primary", text: teamResult ? "Slumpa om lagen" : "Skapa lag", attrs: { style: "width:100%;" } });
+    genBtn.addEventListener("click", function () {
+      var selected = players.filter(function (p) { return teamSelected[p.id]; });
+      if (selected.length < teamCount) { setStatus("Välj minst " + teamCount + " spelare för att skapa " + teamCount + " lag."); return; }
+      setStatus("");
+      teamResult = generateTeams(selected, teamCount);
+      selectedSlotRef = null;
+      teamsTextOpen = false;
+      render();
+    });
+    countPanel.appendChild(genBtn);
+    mainEl.appendChild(countPanel);
+
+    if (teamResult) {
+      var resultsHeader = el("div", { attrs: { style: "display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;" } });
+      resultsHeader.appendChild(el("h2", { className: "section-title", text: "Lagindelning", attrs: { style: "margin:0;" } }));
+      mainEl.appendChild(resultsHeader);
+      mainEl.appendChild(el("div", { className: "swap-hint", text: selectedSlotRef ? "Välj vem " + (getSlotPlayer(selectedSlotRef) ? getSlotPlayer(selectedSlotRef).name : "spelaren") + " ska byta plats med – i valfritt lag." : "Tryck på en spelare och sedan på en annan för att byta plats – fungerar både inom och mellan lagen." }));
+
+      teamResult.forEach(function (team, teamIdx) { mainEl.appendChild(renderTeamPitch(team, teamIdx)); });
+
+      var textPanel = el("div", { className: "panel" });
+      var toggleTextBtn = el("button", { className: "small", text: teamsTextOpen ? "Dölj som text" : "Visa som text (för att kopiera)" });
+      toggleTextBtn.addEventListener("click", function () { teamsTextOpen = !teamsTextOpen; render(); });
+      textPanel.appendChild(toggleTextBtn);
+      if (teamsTextOpen) {
+        var ta = el("textarea", { attrs: { id: "teamsTextArea", readonly: "readonly" } });
+        var lines = [];
+        teamResult.forEach(function (team, idx) {
+          var style = TEAM_STYLES[idx % TEAM_STYLES.length];
+          lines.push(style.name + ":");
+          lines.push("  Startelva:");
+          team.starters.forEach(function (s) { lines.push("    " + s.role + ": " + (s.player ? s.player.name : "–")); });
+          var subs = team.subs.filter(Boolean);
+          if (subs.length) {
+            lines.push("  Avbytare: " + subs.map(function (p) { return p.name; }).join(", "));
+          }
+          lines.push("");
+        });
+        ta.value = lines.join("\n");
+        textPanel.appendChild(ta);
+      }
+      mainEl.appendChild(textPanel);
+    }
+  }
+
+  function renderTeamPitch(team, teamIdx) {
+    var style = TEAM_STYLES[teamIdx % TEAM_STYLES.length];
+    var allPlayers = teamAllPlayers(team);
+    var avgSkill = teamAvgSkill(team);
+
+    var card = el("div", { className: "panel team-panel" });
+    var head = el("div", { className: "team-panel-head" });
+    var titleWrap = el("div", { attrs: { style: "display:flex;align-items:center;gap:8px;" } });
+    titleWrap.appendChild(el("span", { className: "team-dot", attrs: { style: "background:" + style.color } }));
+    titleWrap.appendChild(el("h3", { text: style.name, attrs: { style: "margin:0;font-size:17px;" } }));
+    head.appendChild(titleWrap);
+    head.appendChild(el("span", { className: "team-summary", text: "Snittnivå " + avgSkill.toFixed(1) + " · " + allPlayers.length + " spelare" }));
+    card.appendChild(head);
+
+    var pitch = el("div", { className: "pitch" });
+    pitch.appendChild(el("div", { className: "pitch-center" }));
+
+    var rows = [];
+    var lastRow = null, currentRow = null;
+    team.starters.forEach(function (s, idx) {
+      if (s.row !== lastRow) { currentRow = { row: s.row, items: [] }; rows.push(currentRow); lastRow = s.row; }
+      currentRow.items.push(idx);
+    });
+    rows.forEach(function (row) {
+      var rowEl = el("div", { className: "pitch-row" });
+      row.items.forEach(function (idx) {
+        var slot = team.starters[idx];
+        var ref = { teamIdx: teamIdx, kind: "starter", idx: idx };
+        var pill = el("div", { className: "pitch-pill" + (isSlotSelected(ref) ? " selected" : "") });
+        pill.appendChild(el("div", { className: "pp-name", text: slot.player ? slot.player.name : "–" }));
+        pill.appendChild(el("div", { className: "pp-role", text: shortRole(slot.role) }));
+        pill.addEventListener("click", function () { handleSlotClick(ref); });
+        rowEl.appendChild(pill);
+      });
+      pitch.appendChild(rowEl);
+    });
+    card.appendChild(pitch);
+
+    card.appendChild(el("div", { className: "subs-title", text: "Avbytare (" + team.subs.filter(Boolean).length + ")" }));
+    var subsWrap = el("div", { className: "subs-wrap" });
+    team.subs.forEach(function (pl, idx) {
+      if (!pl) return;
+      var ref = { teamIdx: teamIdx, kind: "sub", idx: idx };
+      var pill = el("button", { className: "sub-pill" + (isSlotSelected(ref) ? " selected" : ""), text: pl.name });
+      pill.type = "button";
+      pill.addEventListener("click", function () { handleSlotClick(ref); });
+      subsWrap.appendChild(pill);
+    });
+    if (!team.subs.filter(Boolean).length) subsWrap.appendChild(el("span", { text: "Inga avbytare i det här laget.", attrs: { style: "color:var(--text-soft);font-size:13px;" } }));
+    card.appendChild(subsWrap);
+
+    return card;
+  }
+
+  function selectedCount() {
+    return Object.keys(teamSelected).filter(function (id) { return teamSelected[id]; }).length;
+  }
+
+  // ---------- attendance / training groups ----------
+  function trainingSelectedCount() {
+    return Object.keys(trainingSelected).filter(function (id) { return trainingSelected[id]; }).length;
+  }
+  function isTrainingSlotSelected(ref) {
+    return trainingSelectedRef && trainingSelectedRef.groupIdx === ref.groupIdx && trainingSelectedRef.idx === ref.idx;
+  }
+  function handleTrainingSlotClick(ref) {
+    if (!trainingSelectedRef) { trainingSelectedRef = ref; render(); return; }
+    if (isTrainingSlotSelected(ref)) { trainingSelectedRef = null; render(); return; }
+    var a = trainingGroups[trainingSelectedRef.groupIdx][trainingSelectedRef.idx];
+    var b = trainingGroups[ref.groupIdx][ref.idx];
+    trainingGroups[trainingSelectedRef.groupIdx][trainingSelectedRef.idx] = b;
+    trainingGroups[ref.groupIdx][ref.idx] = a;
+    trainingSelectedRef = null;
+    render();
+  }
+  function trainingGroupAvgSkill(group) {
+    if (!group.length) return 0;
+    return group.reduce(function (s, p) { return s + overallSkill(p); }, 0) / group.length;
+  }
+
+  function renderAttendance() {
+    mainEl.appendChild(el("h2", { className: "section-title", text: "Närvaro & träningsgrupper" }));
+    mainEl.appendChild(el("p", { text: "Kryssa i vilka spelare som är på plats idag. Dela sedan in dem jämnt i " + TRAINING_GROUP_COUNT + " träningsgrupper, balanserat efter position och bedömd nivå, så varje tränare bara behöver hålla koll på sin egen grupp.", attrs: { style: "color:var(--text-soft);font-size:14px;margin-top:-6px;" } }));
+
+    var panel = el("div", { className: "panel" });
+    var availRow = el("div", { className: "avail-controls" });
+    var selectAllBtn = el("button", { className: "small", text: "Markera alla" });
+    var selectNoneBtn = el("button", { className: "small", text: "Avmarkera alla" });
+    var countLabel = el("span", { text: trainingSelectedCount() + " av " + players.length + " på plats", attrs: { style: "font-size:13px;color:var(--text-soft);margin-left:4px;" } });
+    selectAllBtn.addEventListener("click", function () { players.forEach(function (p) { trainingSelected[p.id] = true; }); render(); });
+    selectNoneBtn.addEventListener("click", function () { trainingSelected = {}; render(); });
+    availRow.appendChild(selectAllBtn); availRow.appendChild(selectNoneBtn); availRow.appendChild(countLabel);
+    panel.appendChild(availRow);
+
+    var groupQuickRow = el("div", { className: "avail-controls" });
+    GROUPS.forEach(function (g) {
+      var groupPlayers = players.filter(function (p) { return p.group === g; });
+      if (!groupPlayers.length) return;
+      var qb = el("button", { className: "small ghost", text: "+ " + g });
+      qb.addEventListener("click", function () { groupPlayers.forEach(function (p) { trainingSelected[p.id] = true; }); render(); });
+      groupQuickRow.appendChild(qb);
+    });
+    panel.appendChild(groupQuickRow);
+
+    var list = el("div", { className: "checklist" });
+    players.slice().sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "sv"); }).forEach(function (p) {
+      var row = el("label", { className: "check-row" });
+      var cb = el("input", { attrs: { type: "checkbox" } });
+      cb.checked = !!trainingSelected[p.id];
+      cb.addEventListener("change", function () { trainingSelected[p.id] = cb.checked; countLabel.textContent = trainingSelectedCount() + " av " + players.length + " på plats"; });
+      row.appendChild(cb);
+      row.appendChild(el("span", { text: p.name }));
+      row.appendChild(el("span", { className: "cr-pos", text: p.position || "–" }));
+      list.appendChild(row);
+    });
+    panel.appendChild(list);
+
+    var genBtn = el("button", { className: "primary", text: trainingGroups ? "Slumpa om grupperna" : "Dela in i " + TRAINING_GROUP_COUNT + " grupper", attrs: { style: "width:100%;margin-top:14px;" } });
+    genBtn.addEventListener("click", function () {
+      var selected = players.filter(function (p) { return trainingSelected[p.id]; });
+      if (selected.length < TRAINING_GROUP_COUNT) { setStatus("Markera minst " + TRAINING_GROUP_COUNT + " närvarande spelare."); return; }
+      setStatus("");
+      trainingGroups = generateTrainingGroups(selected, TRAINING_GROUP_COUNT);
+      trainingSelectedRef = null;
+      trainingTextOpen = false;
+      render();
+    });
+    panel.appendChild(genBtn);
+    mainEl.appendChild(panel);
+
+    if (trainingGroups) {
+      var selName = trainingSelectedRef ? trainingGroups[trainingSelectedRef.groupIdx][trainingSelectedRef.idx].name : null;
+      mainEl.appendChild(el("div", { className: "swap-hint", text: selName ? "Välj vem " + selName + " ska byta plats med – i valfri grupp." : "Tryck på en spelare och sedan på en annan för att byta grupp." }));
+
+      var grid = el("div", { className: "team-grid-plain" });
+      trainingGroups.forEach(function (group, groupIdx) {
+        var style = TEAM_STYLES[groupIdx % TEAM_STYLES.length];
+        var card = el("div", { className: "panel training-group-card" });
+        var head = el("div", { className: "team-panel-head" });
+        var titleWrap = el("div", { attrs: { style: "display:flex;align-items:center;gap:8px;" } });
+        titleWrap.appendChild(el("span", { className: "team-dot", attrs: { style: "background:" + style.color } }));
+        titleWrap.appendChild(el("h3", { text: "Träningsgrupp " + (groupIdx + 1), attrs: { style: "margin:0;font-size:16px;" } }));
+        head.appendChild(titleWrap);
+        head.appendChild(el("span", { className: "team-summary", text: group.length + " spelare · snitt " + trainingGroupAvgSkill(group).toFixed(1) }));
+        card.appendChild(head);
+
+        var coachRow = el("div", { attrs: { style: "margin-bottom:12px;" } });
+        coachRow.appendChild(el("label", { text: "Tränare för gruppen", attrs: { style: "font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px;" } }));
+        var coachInput = el("input", { attrs: { type: "text", placeholder: "Namn", maxlength: "60", style: "width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;" } });
+        coachInput.value = trainingCoachNames[groupIdx] || "";
+        coachInput.addEventListener("input", function () { trainingCoachNames[groupIdx] = coachInput.value; });
+        coachRow.appendChild(coachInput);
+        card.appendChild(coachRow);
+
+        var pillWrap = el("div", { className: "subs-wrap" });
+        group.forEach(function (pl, idx) {
+          var ref = { groupIdx: groupIdx, idx: idx };
+          var wrap = el("div", { className: "sub-pill-wrap" + (isTrainingSlotSelected(ref) ? " selected" : "") });
+          var nameBtn = el("button", { className: "sub-pill-name", text: pl.name + (pl.position ? " · " + shortRole(pl.position) : "") });
+          nameBtn.type = "button";
+          nameBtn.title = "Öppna " + pl.name + " och gör en bedömning";
+          nameBtn.addEventListener("click", function () {
+            navigateBackTo = { mode: "attendance" };
+            view = { mode: "detail", id: pl.id };
+            newAssessmentOpen = true;
+            draftAssessment = blankDraft();
+            render();
+            window.scrollTo(0, 0);
+          });
+          var swapBtn = el("button", { className: "sub-pill-swap", text: "⇄", attrs: { title: "Byt plats med en annan spelare" } });
+          swapBtn.type = "button";
+          swapBtn.addEventListener("click", function () { handleTrainingSlotClick(ref); });
+          wrap.appendChild(nameBtn); wrap.appendChild(swapBtn);
+          pillWrap.appendChild(wrap);
+        });
+        card.appendChild(pillWrap);
+        grid.appendChild(card);
+      });
+      mainEl.appendChild(grid);
+
+      var textPanel = el("div", { className: "panel" });
+      var toggleTextBtn = el("button", { className: "small", text: trainingTextOpen ? "Dölj som text" : "Visa som text (för att kopiera)" });
+      toggleTextBtn.addEventListener("click", function () { trainingTextOpen = !trainingTextOpen; render(); });
+      textPanel.appendChild(toggleTextBtn);
+      if (trainingTextOpen) {
+        var ta = el("textarea", { attrs: { id: "trainingTextArea", readonly: "readonly" } });
+        var lines = [];
+        trainingGroups.forEach(function (group, idx) {
+          lines.push("Träningsgrupp " + (idx + 1) + ":");
+          group.forEach(function (p) { lines.push("  - " + p.name + (p.position ? " (" + p.position + ")" : "")); });
+          lines.push("");
+        });
+        ta.value = lines.join("\n");
+        textPanel.appendChild(ta);
+      }
+      mainEl.appendChild(textPanel);
+    }
+  }
+
+  function groupAverage(assessment, groupKey) {
+    var g = CATEGORY_GROUPS.filter(function (x) { return x.key === groupKey; })[0];
+    if (!g) return null;
+    var sum = 0, n = 0;
+    g.items.forEach(function (it) {
+      var v = assessment.ratings ? assessment.ratings[it.key] : undefined;
+      if (typeof v === "number") { sum += v; n++; }
+    });
+    return n ? sum / n : null;
+  }
+
+  // ---------- rendering ----------
+  function render() {
+    mainEl.innerHTML = "";
+    mainEl.appendChild(renderNav());
+    if (view.mode === "squad") renderSquad();
+    else if (view.mode === "teams") renderTeams();
+    else if (view.mode === "attendance") renderAttendance();
+    else renderDetail(view.id);
+  }
+
+  function renderNav() {
+    var nav = el("div", { className: "nav-tabs" });
+    var truppTab = el("button", { className: "nav-tab" + (view.mode !== "teams" && view.mode !== "attendance" ? " active" : ""), text: "Trupp" });
+    truppTab.addEventListener("click", function () { if (view.mode !== "squad") { view = { mode: "squad" }; render(); } });
+    var teamsTab = el("button", { className: "nav-tab" + (view.mode === "teams" ? " active" : ""), text: "Laguttagning" });
+    teamsTab.addEventListener("click", function () { if (view.mode !== "teams") { view = { mode: "teams" }; render(); } });
+    var attTab = el("button", { className: "nav-tab" + (view.mode === "attendance" ? " active" : ""), text: "Närvaro" });
+    attTab.addEventListener("click", function () { if (view.mode !== "attendance") { view = { mode: "attendance" }; render(); } });
+    nav.appendChild(truppTab); nav.appendChild(teamsTab); nav.appendChild(attTab);
+    return nav;
+  }
+
+  function renderSquad() {
+    var pills = el("div", { className: "pills" });
+    ["Alla"].concat(GROUPS).forEach(function (g) {
+      var count = g === "Alla" ? players.length : players.filter(function (p) { return p.group === g; }).length;
+      var btn = el("button", { className: "pill" + (g === currentFilter ? " active" : ""), html: escapeHtml(g) + ' <span class="count">' + count + "</span>" });
+      btn.addEventListener("click", function () { currentFilter = g; render(); });
+      pills.appendChild(btn);
+    });
+    mainEl.appendChild(pills);
+
+    var panel = el("div", { className: "panel" });
+    var controlsRow = el("div", { className: "controls-row" });
+    var nameInput = el("input", { attrs: { type: "text", placeholder: "Spelarens namn", maxlength: "60" } });
+    var addBtn = el("button", { className: "primary", text: "Lägg till" });
+    addBtn.addEventListener("click", function () { addPlayer(nameInput.value); nameInput.value = ""; nameInput.focus(); });
+    nameInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { addPlayer(nameInput.value); nameInput.value = ""; } });
+    controlsRow.appendChild(nameInput); controlsRow.appendChild(addBtn);
+    panel.appendChild(controlsRow);
+
+    var secondaryRow = el("div", { className: "secondary-row" });
+    var pasteToggleBtn = el("button", { text: "Klistra in flera namn" });
+    var exportBtn = el("button", { text: "Exportera" });
+    var importBtn = el("button", { text: "Importera" });
+    var importFile = el("input", { attrs: { type: "file", accept: "application/json", style: "display:none;" } });
+    secondaryRow.appendChild(pasteToggleBtn); secondaryRow.appendChild(exportBtn); secondaryRow.appendChild(importBtn); secondaryRow.appendChild(importFile);
+    panel.appendChild(secondaryRow);
+
+    var pasteArea = el("textarea", { attrs: { id: "pasteArea", placeholder: "Ett namn per rad" } });
+    var pasteActions = el("div", { className: "paste-actions", attrs: { id: "pasteActions" } });
+    var pasteConfirm = el("button", { className: "primary small", text: "Lägg till alla" });
+    var pasteCancel = el("button", { className: "small", text: "Avbryt" });
+    pasteActions.appendChild(pasteConfirm); pasteActions.appendChild(pasteCancel);
+    panel.appendChild(pasteArea); panel.appendChild(pasteActions);
+
+    pasteToggleBtn.addEventListener("click", function () {
+      var showing = pasteArea.style.display === "block";
+      pasteArea.style.display = showing ? "none" : "block";
+      pasteActions.style.display = showing ? "none" : "flex";
+      if (!showing) pasteArea.focus();
+    });
+    pasteCancel.addEventListener("click", function () { pasteArea.style.display = "none"; pasteActions.style.display = "none"; pasteArea.value = ""; });
+    pasteConfirm.addEventListener("click", function () {
+      addManyPlayers(pasteArea.value.split("\n"));
+      pasteArea.value = ""; pasteArea.style.display = "none"; pasteActions.style.display = "none";
+    });
+    exportBtn.addEventListener("click", doExport);
+    importBtn.addEventListener("click", function () { importFile.click(); });
+    importFile.addEventListener("change", function () { if (importFile.files && importFile.files[0]) doImport(importFile.files[0]); importFile.value = ""; });
+
+    mainEl.appendChild(panel);
+
+    var list = currentFilter === "Alla" ? players.slice() : players.filter(function (p) { return p.group === currentFilter; });
+    list.sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "sv"); });
+
+    if (list.length === 0) {
+      mainEl.appendChild(el("div", { className: "empty-state", text: players.length === 0 ? "Inga spelare ännu – lägg till din första spelare ovan." : "Inga spelare i den här gruppen." }));
+      return;
+    }
+    var listWrap = el("div", { className: "player-list" });
+    list.forEach(function (p) {
+      var row = el("div", { className: "player-row" });
+      var left = el("div");
+      left.appendChild(el("div", { className: "name", text: p.name }));
+      var metaParts = [];
+      if (p.position) metaParts.push(p.position);
+      metaParts.push(p.group);
+      left.appendChild(el("div", { className: "meta", text: metaParts.join(" · ") }));
+      row.appendChild(left);
+
+      var right = el("div", { className: "row-actions" });
+      if (confirmDeletePlayerId === p.id) {
+        var confirmText = el("span", { text: "Ta bort?", attrs: { style: "font-size:12.5px;color:var(--danger);margin-right:4px;" } });
+        var yesBtn = el("button", { className: "small icon-btn danger", text: "Ja" });
+        var noBtn = el("button", { className: "small ghost", text: "Nej" });
+        yesBtn.addEventListener("click", function (ev) { ev.stopPropagation(); confirmDeletePlayerId = null; removePlayer(p.id); });
+        noBtn.addEventListener("click", function (ev) { ev.stopPropagation(); confirmDeletePlayerId = null; render(); });
+        right.appendChild(confirmText); right.appendChild(yesBtn); right.appendChild(noBtn);
+      } else {
+        var delBtn = el("button", { className: "icon-btn danger", text: "✕", attrs: { title: "Ta bort spelare" } });
+        delBtn.addEventListener("click", function (ev) { ev.stopPropagation(); confirmDeletePlayerId = p.id; render(); });
+        right.appendChild(delBtn);
+        right.appendChild(el("div", { className: "arrow", text: "›" }));
+      }
+      row.appendChild(right);
+
+      row.addEventListener("click", function () { view = { mode: "detail", id: p.id }; newAssessmentOpen = false; render(); window.scrollTo(0, 0); });
+      listWrap.appendChild(row);
+    });
+    mainEl.appendChild(listWrap);
+  }
+
+  function blankDraft() {
+    var d = { occasion: "", date: todayIso(), ratings: {}, comment: "" };
+    ALL_ITEM_KEYS.forEach(function (k) { d.ratings[k] = Math.round(RATING_MAX / 2); });
+    return d;
+  }
+
+  function renderDetail(id) {
+    var p = players.filter(function (x) { return x.id === id; })[0];
+    if (!p) { view = { mode: "squad" }; render(); return; }
+
+    var backLabel = navigateBackTo && navigateBackTo.mode === "attendance" ? "Närvaro" : "Truppen";
+    var back = el("button", { className: "back-link", html: "&larr; " + backLabel });
+    back.addEventListener("click", function () {
+      if (navigateBackTo) { view = navigateBackTo; navigateBackTo = null; } else { view = { mode: "squad" }; }
+      render();
+    });
+    mainEl.appendChild(back);
+
+    var head = el("div", { className: "detail-header" });
+    var headLeft = el("div");
+    if (renamingPlayerId === p.id) {
+      var renameRow = el("div", { attrs: { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap;" } });
+      var renameInput = el("input", { attrs: { type: "text", maxlength: "60", style: "font-size:18px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);" } });
+      renameInput.value = renameDraft;
+      renameInput.addEventListener("input", function () { renameDraft = renameInput.value; });
+      var saveNameBtn = el("button", { className: "small primary", text: "Spara" });
+      var cancelNameBtn = el("button", { className: "small ghost", text: "Avbryt" });
+      saveNameBtn.addEventListener("click", function () {
+        var nn = renameDraft.trim();
+        renamingPlayerId = null;
+        if (nn) updatePlayer(p.id, { name: nn }); else render();
+      });
+      cancelNameBtn.addEventListener("click", function () { renamingPlayerId = null; render(); });
+      renameRow.appendChild(renameInput); renameRow.appendChild(saveNameBtn); renameRow.appendChild(cancelNameBtn);
+      headLeft.appendChild(renameRow);
+    } else {
+      headLeft.appendChild(el("div", { className: "detail-name", text: p.name }));
+    }
+    headLeft.appendChild(el("div", { className: "detail-sub", text: (p.position || "Ingen position") + " · " + p.group + (p.preferredFoot ? " · Fot: " + p.preferredFoot : "") }));
+    head.appendChild(headLeft);
+    if (renamingPlayerId !== p.id) {
+      var renameBtn = el("button", { className: "small", text: "Ändra namn" });
+      renameBtn.addEventListener("click", function () { renamingPlayerId = p.id; renameDraft = p.name; render(); });
+      head.appendChild(renameBtn);
+    }
+    var pdfBtn = el("button", { className: "small", text: "Exportera PDF" });
+    pdfBtn.addEventListener("click", function () { exportPlayerPdf(p, pdfBtn); });
+    head.appendChild(pdfBtn);
+    mainEl.appendChild(head);
+
+    var fieldsPanel = el("div", { className: "panel" });
+    var grid = el("div", { className: "field-grid" });
+
+    var posWrap = el("div");
+    posWrap.appendChild(el("label", { text: "Position" }));
+    var posSel = el("select");
+    POSITIONS.forEach(function (pos) {
+      var opt = el("option", { text: pos || "Ingen position" });
+      opt.value = pos;
+      if (pos === p.position) opt.selected = true;
+      posSel.appendChild(opt);
+    });
+    posSel.addEventListener("change", function () { updatePlayer(p.id, { position: posSel.value }); });
+    posWrap.appendChild(posSel);
+    grid.appendChild(posWrap);
+
+    var grpWrap = el("div");
+    grpWrap.appendChild(el("label", { text: "Grupp" }));
+    var grpSel = el("select");
+    GROUPS.forEach(function (g) {
+      var opt = el("option", { text: g }); opt.value = g;
+      if (g === p.group) opt.selected = true;
+      grpSel.appendChild(opt);
+    });
+    grpSel.addEventListener("change", function () { updatePlayer(p.id, { group: grpSel.value }); });
+    grpWrap.appendChild(grpSel);
+    grid.appendChild(grpWrap);
+
+    var footWrap = el("div");
+    footWrap.appendChild(el("label", { text: "Föredragen fot" }));
+    var footSel = el("select");
+    FOOT_OPTIONS.forEach(function (f) {
+      var opt = el("option", { text: f || "Ej angiven" }); opt.value = f;
+      if (f === p.preferredFoot) opt.selected = true;
+      footSel.appendChild(opt);
+    });
+    footSel.addEventListener("change", function () { updatePlayer(p.id, { preferredFoot: footSel.value }); });
+    footWrap.appendChild(footSel);
+    grid.appendChild(footWrap);
+
+    fieldsPanel.appendChild(grid);
+    mainEl.appendChild(fieldsPanel);
+
+    // charts
+    if (p.assessments.length) {
+      var chartsPanel = el("div", { className: "panel" });
+      chartsPanel.appendChild(el("h2", { className: "section-title", text: "Utveckling över tid" }));
+      chartsPanel.appendChild(buildLineChart(p.assessments));
+      var legend = el("div", { className: "legend-row" });
+      CATEGORY_GROUPS.forEach(function (g) {
+        legend.appendChild(el("span", { html: '<span class="legend-dot" style="background:' + CHART_COLORS[g.key] + '"></span>' + escapeHtml(g.label) }));
+      });
+      chartsPanel.appendChild(legend);
+
+      if (p.assessments.length >= 1) {
+        chartsPanel.appendChild(el("h2", { className: "section-title", text: "Senaste profilen", attrs: { style: "margin-top:22px;" } }));
+        chartsPanel.appendChild(buildRadarChart(p.assessments));
+        chartsPanel.appendChild(el("div", { className: "chart-caption", text: p.assessments.length > 1 ? "Ljus yta = föregående bedömning · Fylld yta = senaste" : "Senaste bedömningen" }));
+      }
+      mainEl.appendChild(chartsPanel);
+    }
+
+    // position suggestion
+    if (p.assessments.length) {
+      mainEl.appendChild(buildPositionPanel(p));
+    }
+
+    // assessment
+    var assessPanel = el("div", { className: "panel" });
+    var assessHeadRow = el("div", { attrs: { style: "display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;" } });
+    assessHeadRow.appendChild(el("h2", { className: "section-title", text: "Ny bedömning", attrs: { style: "margin:0;" } }));
+    var toggleBtn = el("button", { className: newAssessmentOpen ? "" : "primary", text: newAssessmentOpen ? "Avbryt" : "Ny bedömning" });
+    toggleBtn.addEventListener("click", function () {
+      newAssessmentOpen = !newAssessmentOpen;
+      if (newAssessmentOpen) draftAssessment = blankDraft();
+      render();
+    });
+    assessHeadRow.appendChild(toggleBtn);
+    assessPanel.appendChild(assessHeadRow);
+
+    if (newAssessmentOpen) {
+      if (!draftAssessment) draftAssessment = blankDraft();
+      var occGrid = el("div", { className: "field-grid" });
+      var occWrap = el("div");
+      occWrap.appendChild(el("label", { text: "Tillfälle (valfritt)" }));
+      var occInput = el("input", { attrs: { type: "text", placeholder: "t.ex. Vårstart", maxlength: "60" } });
+      occInput.value = draftAssessment.occasion;
+      occInput.addEventListener("input", function () { draftAssessment.occasion = occInput.value; });
+      occWrap.appendChild(occInput);
+      occGrid.appendChild(occWrap);
+
+      var dateWrap = el("div");
+      dateWrap.appendChild(el("label", { text: "Datum" }));
+      var dateInput = el("input", { attrs: { type: "date" } });
+      dateInput.value = draftAssessment.date;
+      dateInput.addEventListener("change", function () { draftAssessment.date = dateInput.value || todayIso(); });
+      dateWrap.appendChild(dateInput);
+      occGrid.appendChild(dateWrap);
+      assessPanel.appendChild(occGrid);
+
+      CATEGORY_GROUPS.forEach(function (g) {
+        assessPanel.appendChild(el("div", { className: "cat-group-label", text: g.label }));
+        g.items.forEach(function (item) {
+          var itemWrap = el("div", { className: "rating-item" });
+          itemWrap.appendChild(el("div", { className: "item-label", text: item.label }));
+          var numRow = el("div", { className: "num-row" });
+          for (var v = 1; v <= RATING_MAX; v++) {
+            (function (val) {
+              var btn = el("button", { className: "num-btn" + (draftAssessment.ratings[item.key] === val ? " selected" : ""), text: String(val) });
+              btn.type = "button";
+              btn.addEventListener("click", function () {
+                draftAssessment.ratings[item.key] = val;
+                render();
+              });
+              numRow.appendChild(btn);
+            })(v);
+          }
+          (function () {
+            var isSkipped = draftAssessment.ratings[item.key] === null || draftAssessment.ratings[item.key] === undefined;
+            var skipBtn = el("button", { className: "num-btn skip" + (isSkipped ? " selected" : ""), text: "Ej bedömd" });
+            skipBtn.type = "button";
+            skipBtn.addEventListener("click", function () {
+              draftAssessment.ratings[item.key] = null;
+              render();
+            });
+            numRow.appendChild(skipBtn);
+          })();
+          itemWrap.appendChild(numRow);
+          assessPanel.appendChild(itemWrap);
+        });
+      });
+
+      var commentWrap = el("div", { attrs: { style: "margin-top:6px;" } });
+      commentWrap.appendChild(el("label", { text: "Personlig kommentar – vad har utvecklats bra?" }));
+      var commentBox = el("textarea", { className: "comment-box" });
+      commentBox.value = draftAssessment.comment;
+      commentBox.addEventListener("input", function () { draftAssessment.comment = commentBox.value; });
+      commentWrap.appendChild(commentBox);
+      assessPanel.appendChild(commentWrap);
+
+      var saveBtn = el("button", { className: "primary", text: "Spara bedömning", attrs: { style: "margin-top:14px;width:100%;" } });
+      saveBtn.addEventListener("click", function () { saveAssessment(p.id); });
+      assessPanel.appendChild(saveBtn);
+    }
+    mainEl.appendChild(assessPanel);
+
+    // history
+    var histPanel = el("div", { className: "panel" });
+    histPanel.appendChild(el("h2", { className: "section-title", text: "Historik" }));
+    if (!p.assessments.length) {
+      histPanel.appendChild(el("div", { className: "empty-state", text: "Inga bedömningar än." }));
+    } else {
+      p.assessments.slice().reverse().forEach(function (a, idx) {
+        var origIndex = p.assessments.length - 1 - idx;
+        var entry = el("div", { className: "history-entry" });
+        var top = el("div", { className: "h-top" });
+        top.appendChild(el("span", { className: "h-date", text: fmtDate(a.date) }));
+        if (a.occasion) top.appendChild(el("span", { className: "h-occasion", text: a.occasion }));
+        entry.appendChild(top);
+        var avgsText = CATEGORY_GROUPS.map(function (g) {
+          var avg = groupAverage(a, g.key);
+          return g.label + " " + (avg !== null ? avg.toFixed(1) : "–");
+        }).join(" · ");
+        entry.appendChild(el("div", { className: "h-avgs", text: avgsText }));
+        if (a.comment) entry.appendChild(el("div", { className: "h-comment", text: "\u201C" + a.comment + "\u201D" }));
+
+        var btnRow = el("div", { attrs: { style: "display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;" } });
+        var entryKey = p.id + "_" + origIndex;
+        var detailBtn = el("button", { className: "small ghost", text: "Visa detaljer" });
+        if (confirmDeleteAssessmentKey === entryKey) {
+          btnRow.appendChild(el("span", { text: "Ta bort bedömningen?", attrs: { style: "font-size:12.5px;color:var(--danger);" } }));
+          var yesA = el("button", { className: "small icon-btn danger", text: "Ja" });
+          var noA = el("button", { className: "small ghost", text: "Nej" });
+          yesA.addEventListener("click", function () { confirmDeleteAssessmentKey = null; removeAssessment(p.id, origIndex); });
+          noA.addEventListener("click", function () { confirmDeleteAssessmentKey = null; render(); });
+          btnRow.appendChild(yesA); btnRow.appendChild(noA);
+        } else {
+          var deleteBtn = el("button", { className: "small icon-btn danger", text: "Ta bort" });
+          deleteBtn.addEventListener("click", function () { confirmDeleteAssessmentKey = entryKey; render(); });
+          btnRow.appendChild(detailBtn); btnRow.appendChild(deleteBtn);
+        }
+        entry.appendChild(btnRow);
+
+        var detailDiv = el("div", { className: "h-detail" });
+        ALL_ITEM_KEYS.forEach(function (key) {
+          var itemDef = null;
+          CATEGORY_GROUPS.forEach(function (g) { g.items.forEach(function (it) { if (it.key === key) itemDef = it; }); });
+          if (!itemDef) return;
+          var row = el("div", { className: "h-detail-item" });
+          row.appendChild(el("span", { text: itemDef.label }));
+          row.appendChild(el("strong", { text: String(a.ratings ? (a.ratings[key] != null ? a.ratings[key] : "–") : "–") }));
+          detailDiv.appendChild(row);
+        });
+        detailBtn.addEventListener("click", function () {
+          detailDiv.classList.toggle("open");
+          detailBtn.textContent = detailDiv.classList.contains("open") ? "Dölj detaljer" : "Visa detaljer";
+        });
+        entry.appendChild(detailDiv);
+        histPanel.appendChild(entry);
+      });
+    }
+    mainEl.appendChild(histPanel);
+  }
+
+  // ---------- charts ----------
+  function buildPositionPanel(p) {
+    var scores = positionScores(p);
+    var panel = el("div", { className: "panel" });
+    panel.appendChild(el("h2", { className: "section-title", text: "Positionsförslag (7 mot 7)" }));
+
+    var ranked = Object.keys(scores)
+      .map(function (pos) { return { pos: pos, data: scores[pos] }; })
+      .filter(function (x) { return x.data !== null; })
+      .sort(function (a, b) { return b.data.value - a.data.value; });
+
+    if (!ranked.length) {
+      panel.appendChild(el("div", { className: "empty-state", text: "Inte tillräckligt med bedömda attribut ännu för att ge ett förslag." }));
+      return panel;
+    }
+
+    var maxVal = RATING_MAX;
+    ranked.forEach(function (r, idx) {
+      var row = el("div", { attrs: { style: "margin-bottom:12px;" } });
+      var top = el("div", { attrs: { style: "display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px;" } });
+      var label = r.pos + (idx === 0 ? "  🏅" : "");
+      top.appendChild(el("span", { text: label, attrs: { style: idx === 0 ? "font-weight:800;" : "font-weight:600;" } }));
+      top.appendChild(el("span", { text: r.data.value.toFixed(1) + " / " + RATING_MAX, attrs: { style: "color:var(--text-soft);font-size:12.5px;" } }));
+      row.appendChild(top);
+      var barBg = el("div", { attrs: { style: "background:var(--surface-2);border-radius:999px;height:10px;overflow:hidden;" } });
+      var barFill = el("div", { attrs: { style: "background:" + (idx === 0 ? "var(--accent)" : "var(--tan)") + ";height:100%;width:" + Math.round((r.data.value / maxVal) * 100) + "%;border-radius:999px;" } });
+      barBg.appendChild(barFill);
+      row.appendChild(barBg);
+      if (r.data.coverage < 0.6) {
+        row.appendChild(el("div", { text: "Få av attributen för den här rollen är bedömda ännu – osäkert underlag.", attrs: { style: "font-size:11.5px;color:var(--text-soft);margin-top:3px;" } }));
+      }
+      panel.appendChild(row);
+    });
+
+    var top1 = ranked[0], top2 = ranked[1];
+    var verdict;
+    if (top2 && (top1.data.value - top2.data.value) < 0.2) {
+      verdict = "Jämnt läge mellan " + top1.pos + " och " + top2.pos + " utifrån bedömningarna hittills.";
+    } else {
+      verdict = "Bedömningarna pekar tydligast mot " + top1.pos + ".";
+    }
+    var currentCat = p.position ? positionCategory(p.position) : "";
+    if (currentCat && currentCat !== top1.pos && POSITION_PROFILES[currentCat]) {
+      verdict += " Han spelas för närvarande som " + p.position + " – kan vara värt att prova mer " + top1.pos + " också.";
+    } else if (currentCat === top1.pos) {
+      verdict += " Det stämmer bra med hans nuvarande position (" + p.position + ").";
+    }
+    panel.appendChild(el("div", { className: "tip", text: "🧭 " + verdict }));
+    panel.appendChild(el("div", { className: "chart-caption", text: "Beräknat som ett vägt snitt av relevanta attribut över alla bedömningar. Se det som ett underlag, inte facit – du känner spelaren bäst." }));
+    return panel;
+  }
+
+  function buildLineChart(assessments) {
+    var w = 660, h = 200, padL = 30, padR = 10, padT = 10, padB = 22;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+    var n = assessments.length;
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+    svg.setAttribute("style", "width:100%;height:auto;display:block;");
+
+    function xFor(i) { return n <= 1 ? padL + innerW / 2 : padL + (innerW * i) / (n - 1); }
+    function yFor(v) { return padT + innerH - ((v - 1) / (RATING_MAX - 1)) * innerH; }
+
+    [2, 4, 6, 8, 10].forEach(function (v) {
+      var line = document.createElementNS(svg.namespaceURI, "line");
+      line.setAttribute("x1", padL); line.setAttribute("x2", w - padR);
+      line.setAttribute("y1", yFor(v)); line.setAttribute("y2", yFor(v));
+      line.setAttribute("stroke", "var(--border)"); line.setAttribute("stroke-width", "1");
+      svg.appendChild(line);
+      var label = document.createElementNS(svg.namespaceURI, "text");
+      label.setAttribute("x", 4); label.setAttribute("y", yFor(v) + 4);
+      label.setAttribute("font-size", "10"); label.setAttribute("fill", "var(--text-soft)");
+      label.textContent = String(v);
+      svg.appendChild(label);
+    });
+
+    CATEGORY_GROUPS.forEach(function (g) {
+      var pts = assessments.map(function (a, i) {
+        var avg = groupAverage(a, g.key);
+        return avg === null ? null : [xFor(i), yFor(avg)];
+      }).filter(function (pt) { return pt !== null; });
+      if (!pts.length) return;
+      var path = document.createElementNS(svg.namespaceURI, "polyline");
+      path.setAttribute("points", pts.map(function (pt) { return pt[0] + "," + pt[1]; }).join(" "));
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", CHART_COLORS[g.key]);
+      path.setAttribute("stroke-width", "2.5");
+      svg.appendChild(path);
+      pts.forEach(function (pt) {
+        var c = document.createElementNS(svg.namespaceURI, "circle");
+        c.setAttribute("cx", pt[0]); c.setAttribute("cy", pt[1]); c.setAttribute("r", "3.5");
+        c.setAttribute("fill", CHART_COLORS[g.key]);
+        svg.appendChild(c);
+      });
+    });
+
+    assessments.forEach(function (a, i) {
+      if (n > 8 && i % Math.ceil(n / 8) !== 0 && i !== n - 1) return;
+      var label = document.createElementNS(svg.namespaceURI, "text");
+      label.setAttribute("x", xFor(i)); label.setAttribute("y", h - 6);
+      label.setAttribute("font-size", "9.5"); label.setAttribute("fill", "var(--text-soft)");
+      label.setAttribute("text-anchor", "middle");
+      label.textContent = fmtDate(a.date).replace(/ \d{4}$/, "");
+      svg.appendChild(label);
+    });
+
+    return svg;
+  }
+
+  function buildRadarChart(assessments) {
+    var w = 380, h = 320, cx = w / 2, cy = h / 2 - 6, R = 92;
+    var axes = CATEGORY_GROUPS.map(function (g, i) {
+      var angle = -Math.PI / 2 + (i * 2 * Math.PI) / CATEGORY_GROUPS.length;
+      return { key: g.key, label: g.label, angle: angle };
+    });
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+    svg.setAttribute("style", "width:100%;max-width:360px;height:auto;display:block;margin:0 auto;");
+
+    [2, 4, 6, 8, 10].forEach(function (v) {
+      var r = (v / RATING_MAX) * R;
+      var pts = axes.map(function (ax) { return (cx + r * Math.cos(ax.angle)) + "," + (cy + r * Math.sin(ax.angle)); }).join(" ");
+      var poly = document.createElementNS(svg.namespaceURI, "polygon");
+      poly.setAttribute("points", pts);
+      poly.setAttribute("fill", "none");
+      poly.setAttribute("stroke", "var(--border)");
+      poly.setAttribute("stroke-width", v === RATING_MAX ? "1.5" : "1");
+      svg.appendChild(poly);
+    });
+    axes.forEach(function (ax) {
+      var line = document.createElementNS(svg.namespaceURI, "line");
+      line.setAttribute("x1", cx); line.setAttribute("y1", cy);
+      line.setAttribute("x2", cx + R * Math.cos(ax.angle)); line.setAttribute("y2", cy + R * Math.sin(ax.angle));
+      line.setAttribute("stroke", "var(--border)"); line.setAttribute("stroke-width", "1");
+      svg.appendChild(line);
+      var lx = cx + (R + 26) * Math.cos(ax.angle), ly = cy + (R + 20) * Math.sin(ax.angle);
+      var text = document.createElementNS(svg.namespaceURI, "text");
+      text.setAttribute("x", lx); text.setAttribute("y", ly);
+      text.setAttribute("font-size", "11"); text.setAttribute("fill", "var(--text-soft)");
+      text.setAttribute("text-anchor", "middle");
+      text.textContent = ax.label;
+      svg.appendChild(text);
+    });
+
+    function polygonFor(assessment) {
+      return axes.map(function (ax) {
+        var avg = groupAverage(assessment, ax.key);
+        var v = avg === null ? 0 : avg;
+        var r = (v / RATING_MAX) * R;
+        return (cx + r * Math.cos(ax.angle)) + "," + (cy + r * Math.sin(ax.angle));
+      }).join(" ");
+    }
+
+    if (assessments.length > 1) {
+      var prev = document.createElementNS(svg.namespaceURI, "polygon");
+      prev.setAttribute("points", polygonFor(assessments[assessments.length - 2]));
+      prev.setAttribute("fill", "rgba(174,165,122,0.25)");
+      prev.setAttribute("stroke", "var(--tan-dark)");
+      prev.setAttribute("stroke-width", "1.5");
+      svg.appendChild(prev);
+    }
+    var latest = document.createElementNS(svg.namespaceURI, "polygon");
+    latest.setAttribute("points", polygonFor(assessments[assessments.length - 1]));
+    latest.setAttribute("fill", "rgba(38,125,193,0.3)");
+    latest.setAttribute("stroke", "var(--accent)");
+    latest.setAttribute("stroke-width", "2");
+    svg.appendChild(latest);
+
+    return svg;
+  }
+
+  // ---------- PDF export ----------
+  function hex2rgb(hex) {
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0, 0, 0];
+  }
+
+  function exportPlayerPdf(p, triggerBtn) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      setStatus("PDF-verktyget laddas fortfarande, försök igen om en liten stund.");
+      return;
+    }
+    var origText = triggerBtn ? triggerBtn.textContent : null;
+    if (triggerBtn) { triggerBtn.disabled = true; triggerBtn.textContent = "Skapar PDF…"; }
+
+    try {
+      var doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
+      var pageW = doc.internal.pageSize.getWidth();
+      var pageH = doc.internal.pageSize.getHeight();
+      var marginX = 42;
+      var y = 50;
+
+      function ensureSpace(h) {
+        if (y + h > pageH - 40) { doc.addPage(); y = 50; }
+      }
+
+      // header
+      var logoImg = document.querySelector("header.hero img");
+      if (logoImg && logoImg.src && logoImg.src.indexOf("data:image") === 0) {
+        try { doc.addImage(logoImg.src, "PNG", pageW - marginX - 46, 34, 46, 46); } catch (e) {}
+      }
+      doc.setTextColor(22, 75, 120);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(21);
+      doc.text(p.name, marginX, y);
+      y += 20;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(91, 90, 78);
+      var subLine = (p.position || "Ingen position") + "  ·  " + p.group + (p.preferredFoot ? "  ·  Fot: " + p.preferredFoot : "");
+      doc.text(subLine, marginX, y);
+      y += 10;
+      doc.setDrawColor(226, 221, 201);
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 22;
+
+      // position suggestion
+      if (p.assessments.length) {
+        var scores = positionScores(p);
+        var ranked = Object.keys(scores).map(function (pos) { return { pos: pos, data: scores[pos] }; })
+          .filter(function (x) { return x.data !== null; })
+          .sort(function (a, b) { return b.data.value - a.data.value; });
+        if (ranked.length) {
+          doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(20, 21, 15);
+          doc.text("Positionsförslag (7 mot 7)", marginX, y);
+          y += 16;
+          var barMaxW = pageW - marginX * 2 - 110;
+          ranked.forEach(function (r, idx) {
+            doc.setFont("helvetica", idx === 0 ? "bold" : "normal");
+            doc.setFontSize(10.5);
+            doc.setTextColor(20, 21, 15);
+            doc.text(r.pos + (idx === 0 ? " (bäst matchning)" : ""), marginX, y + 8);
+            var bw = (r.data.value / RATING_MAX) * barMaxW;
+            doc.setFillColor(226, 221, 201);
+            doc.rect(marginX + 110, y, barMaxW, 9, "F");
+            var rgb = idx === 0 ? hex2rgb("#267DC1") : hex2rgb("#AEA57A");
+            doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+            doc.rect(marginX + 110, y, bw, 9, "F");
+            doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(91, 90, 78);
+            doc.text(r.data.value.toFixed(1), marginX + 115 + barMaxW, y + 8);
+            y += 20;
+          });
+          y += 10;
+        }
+      }
+
+      // line chart: category averages over time
+      if (p.assessments.length) {
+        ensureSpace(190);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(20, 21, 15);
+        doc.text("Utveckling över tid", marginX, y);
+        y += 16;
+        var chartX = marginX + 22, chartW = pageW - marginX * 2 - 22, chartH = 120;
+        var chartTop = y, chartBottom = y + chartH;
+        doc.setDrawColor(226, 221, 201); doc.setFontSize(8); doc.setTextColor(91, 90, 78);
+        for (var v = 2; v <= RATING_MAX; v += 2) {
+          var gy = chartBottom - ((v - 1) / (RATING_MAX - 1)) * chartH;
+          doc.line(chartX, gy, chartX + chartW, gy);
+          doc.text(String(v), marginX, gy + 3);
+        }
+        var n = p.assessments.length;
+        function xFor(i) { return n <= 1 ? chartX + chartW / 2 : chartX + (chartW * i) / (n - 1); }
+        function yFor(val) { return chartBottom - ((val - 1) / (RATING_MAX - 1)) * chartH; }
+        CATEGORY_GROUPS.forEach(function (g) {
+          var rgb = hex2rgb(CHART_COLORS[g.key]);
+          doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+          doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+          var prevPt = null;
+          p.assessments.forEach(function (a, i) {
+            var avg = groupAverage(a, g.key);
+            if (avg === null) { prevPt = null; return; }
+            var pt = [xFor(i), yFor(avg)];
+            if (prevPt) doc.line(prevPt[0], prevPt[1], pt[0], pt[1]);
+            doc.circle(pt[0], pt[1], 1.6, "F");
+            prevPt = pt;
+          });
+        });
+        y = chartBottom + 14;
+        doc.setFontSize(8.5);
+        var legendX = marginX;
+        CATEGORY_GROUPS.forEach(function (g) {
+          var rgb = hex2rgb(CHART_COLORS[g.key]);
+          doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+          doc.rect(legendX, y - 7, 7, 7, "F");
+          doc.setTextColor(91, 90, 78);
+          doc.text(g.label, legendX + 10, y - 1);
+          legendX += doc.getTextWidth(g.label) + 30;
+          if (legendX > pageW - marginX - 80) { legendX = marginX; y += 14; }
+        });
+        y += 22;
+      }
+
+      // history
+      ensureSpace(30);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(20, 21, 15);
+      doc.text("Historik", marginX, y);
+      y += 18;
+      if (!p.assessments.length) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(91, 90, 78);
+        doc.text("Inga bedömningar än.", marginX, y);
+        y += 16;
+      } else {
+        p.assessments.slice().reverse().forEach(function (a) {
+          var avgsText = CATEGORY_GROUPS.map(function (g) {
+            var avg = groupAverage(a, g.key);
+            return g.label + " " + (avg !== null ? avg.toFixed(1) : "–");
+          }).join("   ·   ");
+          var commentLines = [];
+          if (a.comment) {
+            doc.setFont("helvetica", "italic"); doc.setFontSize(9.5);
+            commentLines = doc.splitTextToSize("\u201C" + a.comment + "\u201D", pageW - marginX * 2 - 10);
+          }
+          var blockH = 16 + 14 + (commentLines.length ? commentLines.length * 12 + 4 : 0) + 10;
+          ensureSpace(blockH);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(20, 21, 15);
+          var head1 = fmtDate(a.date) + (a.occasion ? "  ·  " + a.occasion : "");
+          doc.text(head1, marginX, y);
+          y += 14;
+          doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(91, 90, 78);
+          doc.text(avgsText, marginX, y);
+          y += 13;
+          if (commentLines.length) {
+            doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(91, 90, 78);
+            commentLines.forEach(function (line) { doc.text(line, marginX, y); y += 12; });
+          }
+          doc.setDrawColor(240, 237, 225);
+          y += 4;
+          doc.line(marginX, y, pageW - marginX, y);
+          y += 14;
+        });
+      }
+
+      var filenameSafe = (p.name || "spelare").replace(/[^a-zA-Z0-9åäöÅÄÖ _-]/g, "").trim() || "spelare";
+      var blob = doc.output("blob");
+      try {
+        triggerDownload(filenameSafe + "-profil.pdf", blob);
+      } catch (e) { setStatus("Export misslyckades."); }
+      if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = origText; }
+    } catch (e) {
+      setStatus("Kunde inte skapa PDF:en.");
+      if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = origText; }
+    }
+  }
+
+  // ---------- data ops ----------
+  function addPlayer(name) {
+    name = (name || "").trim();
+    if (!name) return;
+    var body = defaultPlayerBody(name);
+    if (db) {
+      db.collection("players").add(body).catch(function () { setStatus("Kunde inte lägga till spelaren."); });
+    } else {
+      players.push(Object.assign({ id: "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) }, normalizePlayer(null, body)));
+      saveLocal(); render();
+    }
+  }
+  function addManyPlayers(names) {
+    var existing = players.map(function (p) { return p.name.trim().toLowerCase(); });
+    var toAdd = [];
+    names.forEach(function (n) {
+      n = n.trim();
+      if (!n || existing.indexOf(n.toLowerCase()) !== -1) return;
+      existing.push(n.toLowerCase()); toAdd.push(n);
+    });
+    if (!toAdd.length) return;
+    toAdd.forEach(function (n) {
+      var body = defaultPlayerBody(n);
+      if (db) db.collection("players").add(body).catch(function () {});
+      else players.push(Object.assign({ id: "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) }, normalizePlayer(null, body)));
+    });
+    if (!db) { saveLocal(); render(); }
+  }
+  function updatePlayer(id, patch) {
+    if (db) {
+      db.doc("players/" + id).update(patch).catch(function () { setStatus("Kunde inte spara ändringen."); });
+    } else {
+      var p = players.filter(function (x) { return x.id === id; })[0];
+      if (p) { Object.assign(p, patch); saveLocal(); render(); }
+    }
+  }
+  function removePlayer(id) {
+    if (db) {
+      db.doc("players/" + id).delete().catch(function () { setStatus("Kunde inte ta bort spelaren."); });
+    } else {
+      players = players.filter(function (p) { return p.id !== id; });
+      saveLocal(); render();
+    }
+  }
+  function removeAssessment(playerId, index) {
+    var p = players.filter(function (x) { return x.id === playerId; })[0];
+    if (!p) return;
+    var newList = p.assessments.slice();
+    newList.splice(index, 1);
+    updatePlayer(playerId, { assessments: newList });
+  }
+  function saveAssessment(id) {
+    var p = players.filter(function (x) { return x.id === id; })[0];
+    if (!p || !draftAssessment) return;
+    var entry = { date: draftAssessment.date || todayIso(), occasion: draftAssessment.occasion || "", ratings: Object.assign({}, draftAssessment.ratings), comment: draftAssessment.comment || "" };
+    var newList = (p.assessments || []).concat([entry]);
+    if (newList.length > MAX_ASSESSMENTS) newList = newList.slice(newList.length - MAX_ASSESSMENTS);
+    newAssessmentOpen = false; draftAssessment = null;
+    updatePlayer(id, { assessments: newList });
+  }
+  function doExport() {
+    var data = players.map(function (p) {
+      return { name: p.name, group: p.group, position: p.position, preferredFoot: p.preferredFoot, assessments: p.assessments || [] };
+    });
+    var json = JSON.stringify(data, null, 2);
+    try {
+      triggerDownload("spelarutveckling-export.json", json);
+    } catch (e) { setStatus("Export misslyckades."); }
+  }
+  function doImport(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var parsed = JSON.parse(reader.result);
+        if (!Array.isArray(parsed)) throw new Error("bad");
+        var existing = players.map(function (p) { return p.name.trim().toLowerCase(); });
+        var added = 0;
+        parsed.forEach(function (item) {
+          if (!item || !item.name) return;
+          var lname = String(item.name).trim().toLowerCase();
+          if (!lname || existing.indexOf(lname) !== -1) return;
+          existing.push(lname); added++;
+          var body = {
+            name: String(item.name).trim(),
+            group: GROUPS.indexOf(item.group) !== -1 ? item.group : "Ingen grupp",
+            position: POSITIONS.indexOf(item.position) !== -1 ? item.position : "",
+            preferredFoot: FOOT_OPTIONS.indexOf(item.preferredFoot) !== -1 ? item.preferredFoot : "",
+            assessments: Array.isArray(item.assessments) ? item.assessments.slice(-MAX_ASSESSMENTS) : [],
+            createdAt: new Date().toISOString()
+          };
+          if (db) db.collection("players").add(body).catch(function () {});
+          else players.push(Object.assign({ id: "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) }, normalizePlayer(null, body)));
+        });
+        if (!db) { saveLocal(); render(); }
+        setStatus(added ? ("Importerade " + added + " spelare.") : "Inga nya spelare att importera.");
+      } catch (e) { setStatus("Kunde inte läsa filen."); }
+    };
+    reader.readAsText(file);
+  }
+
+  function subscribeDb() {
+    db.collection("players").onSnapshot(function (snap) {
+      players = snap.docs.map(function (d) { return normalizePlayer(d.id, d.data()); });
+      render();
+    }, function () { setStatus("Kunde inte ladda data just nu."); });
+  }
+
+  // ---------- Firebase adapter ----------
+  // OBS: dubbelkolla särskilt appId mot din konsol – det klipptes delvis av i
+  // skärmdumpen du skickade, så sista tecknen kan vara fel här.
+  // Kontrollera också databaseURL nedan mot den URL som visas överst på din
+  // Realtime Database-sida (den skiljer sig beroende på vilken region du valde
+  // när du skapade databasen – den här raden är en gissning på europe-west1).
+  var firebaseConfig = {
+    apiKey: "AIzaSyA8j18KpQctvyc6Zigr2c9RopS9YDzp3co",
+    authDomain: "lagprojekt-4b967.firebaseapp.com",
+    databaseURL: "https://lagprojekt-4b967-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "lagprojekt-4b967",
+    storageBucket: "lagprojekt-4b967.firebasestorage.app",
+    messagingSenderId: "799207253972",
+    appId: "1:799207253972:web:9f61e787b9697a45991841",
+    measurementId: "G-0WWYNLFT01"
+  };
+
+  // Efterliknar samma collection()/doc()-gränssnitt som Claude-artefaktens inbyggda db,
+  // så resten av appens kod (addPlayer, updatePlayer, saveAssessment, m.fl.) är oförändrad.
+  function makeFirebaseDbAdapter() {
+    var rtdb = firebase.database();
+    return {
+      collection: function (name) {
+        var ref = rtdb.ref(name);
+        return {
+          add: function (data) { return ref.push(data); },
+          onSnapshot: function (cb, errCb) {
+            ref.on("value", function (snapshot) {
+              var val = snapshot.val() || {};
+              var docs = Object.keys(val).map(function (id) {
+                return { id: id, data: function () { return val[id]; } };
+              });
+              cb({ docs: docs });
+            }, errCb);
+            return function () { ref.off("value"); };
+          }
+        };
+      },
+      doc: function (path) {
+        var ref = rtdb.ref(path);
+        return {
+          update: function (patch) { return ref.update(patch); },
+          delete: function () { return ref.remove(); }
+        };
+      }
+    };
+  }
+
+  function triggerDownload(filename, dataOrBlob) {
+    var blob = dataOrBlob instanceof Blob ? dataOrBlob : new Blob([dataOrBlob], { type: "application/octet-stream" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function registerServiceWorker() {
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("service-worker.js").catch(function () {});
+      });
+    }
+  }
+
+  function init() {
+    setStatus("Laddar…");
+    registerServiceWorker();
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = makeFirebaseDbAdapter();
+      storageMode = "firebase";
+      setStatus("");
+      subscribeDb();
+    } catch (e) {
+      storageMode = "local";
+      players = loadLocal().map(function (p) { return normalizePlayer(p.id, p); });
+      setStatus("Kunde inte ansluta till Firebase – sparar lokalt i den här webbläsaren.");
+      render();
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

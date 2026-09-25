@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "players": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
