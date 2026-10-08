@@ -143,7 +143,7 @@
 
   h2.section-title { font-size: 16px; margin: 0 0 10px; }
 
-  .nav-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; }
+  .nav-tabs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 18px; }
   .nav-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); font-size: 14px; font-weight: 700; padding: 9px 18px; border-radius: 999px; cursor: pointer; }
   .nav-tab.active { background: var(--black); color: white; border-color: var(--black); }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .nav-tab.active { background: var(--accent); border-color: var(--accent); } }
@@ -166,6 +166,11 @@
   .team-panel-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .team-dot { display: inline-block; width: 13px; height: 13px; border-radius: 50%; }
   .team-summary { font-size: 12.5px; color: var(--text-soft); }
+  .exercise-form textarea { width: 100%; min-height: 110px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; }
+  .exercise-form input, .exercise-form select { width: 100%; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; }
+  .exercise-card h3 { margin: 0; font-size: 17px; }
+  .exercise-card p { margin: 8px 0 0; white-space: pre-wrap; }
+  .exercise-meta { font-size: 12.5px; color: var(--text-soft); margin-top: 3px; }
 
   .pitch {
     background: linear-gradient(180deg, #2e8a44, #2a7d3f);
@@ -325,8 +330,11 @@
   var CHART_COLORS = { spelforstaelse: "#267DC1", teknik: "#8a805a", laganda: "#1a7a3d", fysik: "#C9752F", malvakt: "#6B4C8A" };
 
   var players = [];
+  var exercises = [];
   var currentFilter = "Alla";
   var view = { mode: "squad" };
+  var editExerciseId = null;
+  var confirmDeleteExerciseId = null;
   var newAssessmentOpen = false;
   var draftAssessment = null;
   var openHistoryIds = {};
@@ -401,6 +409,15 @@
     } catch (e) { return []; }
   }
   function saveLocal() { try { localStorage.setItem(localKey(), JSON.stringify(players)); } catch (e) {} }
+  function exerciseLocalKey() { return "spelarutveckling_exercises_v1"; }
+  function loadLocalExercises() {
+    try {
+      var raw = localStorage.getItem(exerciseLocalKey());
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.map(function (item) { return normalizeExercise(item.id, item); }) : [];
+    } catch (e) { return []; }
+  }
+  function saveLocalExercises() { try { localStorage.setItem(exerciseLocalKey(), JSON.stringify(exercises)); } catch (e) {} }
 
   function setStatus(msg) { statusBar.textContent = msg || ""; }
 
@@ -412,6 +429,17 @@
     var ratingsShim = null;
     if (!Array.isArray(data.assessments) && data.ratings) {
       ratingsShim = data.ratings;
+    }
+    function normalizeExercise(id, data) {
+      data = data || {};
+      return {
+        id: id || data.id || "",
+        name: String(data.name || ""),
+        focus: String(data.focus || ""),
+        instructions: String(data.instructions || ""),
+        dosage: String(data.dosage || ""),
+        equipment: String(data.equipment || "")
+      };
     }
     return {
       id: id,
