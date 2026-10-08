@@ -4,7 +4,7 @@ Den här mappen innehåller en fristående version av appen, redo att driftsätt
 eget Firebase-projekt (Realtime Database + Hosting). Filerna:
 
 ```
-index.html          – hela appen (samma funktioner som i Claude-versionen)
+index.html          – appen med spelarutveckling, laghantering och hemmaträning
 manifest.json        – gör appen installerbar (namn, ikon, färger)
 service-worker.js    – cachar appen så den fungerar offline och kan installeras
 icon-192.png / icon-512.png – appikoner, genererade från klubbloggan
@@ -49,6 +49,10 @@ får skriva) kan du aktivera **Authentication** i Firebase och byta reglerna mot
 {
   "rules": {
     "players": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "exercises": {
       ".read": "auth != null",
       ".write": "auth != null"
     }

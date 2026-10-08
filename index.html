@@ -1825,6 +1825,10 @@
       players = snap.docs.map(function (d) { return normalizePlayer(d.id, d.data()); });
       render();
     }, function () { setStatus("Kunde inte ladda data just nu."); });
+    db.collection("exercises").onSnapshot(function (snap) {
+      exercises = snap.docs.map(function (d) { return normalizeExercise(d.id, d.data()); });
+      render();
+    }, function () { setStatus("Kunde inte ladda övningarna just nu."); });
   }
 
   // ---------- Firebase adapter ----------
@@ -1904,6 +1908,7 @@
     } catch (e) {
       storageMode = "local";
       players = loadLocal().map(function (p) { return normalizePlayer(p.id, p); });
+      exercises = loadLocalExercises();
       setStatus("Kunde inte ansluta till Firebase – sparar lokalt i den här webbläsaren.");
       render();
     }
