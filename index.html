@@ -860,18 +860,21 @@
     if (view.mode === "squad") renderSquad();
     else if (view.mode === "teams") renderTeams();
     else if (view.mode === "attendance") renderAttendance();
+    else if (view.mode === "exercises") renderHomeTraining();
     else renderDetail(view.id);
   }
 
   function renderNav() {
     var nav = el("div", { className: "nav-tabs" });
-    var truppTab = el("button", { className: "nav-tab" + (view.mode !== "teams" && view.mode !== "attendance" ? " active" : ""), text: "Trupp" });
+    var truppTab = el("button", { className: "nav-tab" + (view.mode !== "teams" && view.mode !== "attendance" && view.mode !== "exercises" ? " active" : ""), text: "Trupp" });
     truppTab.addEventListener("click", function () { if (view.mode !== "squad") { view = { mode: "squad" }; render(); } });
     var teamsTab = el("button", { className: "nav-tab" + (view.mode === "teams" ? " active" : ""), text: "Laguttagning" });
     teamsTab.addEventListener("click", function () { if (view.mode !== "teams") { view = { mode: "teams" }; render(); } });
     var attTab = el("button", { className: "nav-tab" + (view.mode === "attendance" ? " active" : ""), text: "Närvaro" });
     attTab.addEventListener("click", function () { if (view.mode !== "attendance") { view = { mode: "attendance" }; render(); } });
-    nav.appendChild(truppTab); nav.appendChild(teamsTab); nav.appendChild(attTab);
+    var exercisesTab = el("button", { className: "nav-tab" + (view.mode === "exercises" ? " active" : ""), text: "Hemmaträning" });
+    exercisesTab.addEventListener("click", function () { if (view.mode !== "exercises") { view = { mode: "exercises" }; render(); } });
+    nav.appendChild(truppTab); nav.appendChild(teamsTab); nav.appendChild(attTab); nav.appendChild(exercisesTab);
     return nav;
   }
 
@@ -964,6 +967,159 @@
       listWrap.appendChild(row);
     });
     mainEl.appendChild(listWrap);
+  }
+
+  function saveExercise(data) {
+    if (db) {
+      var saveRequest = editExerciseId
+        ? db.doc("exercises/" + editExerciseId).update(data)
+        : db.collection("exercises").add(data);
+      saveRequest.then(function () { editExerciseId = null; })
+        .catch(function () { setStatus("Kunde inte spara övningen."); });
+      return;
+    }
+    if (editExerciseId) {
+      var current = exercises.filter(function (item) { return item.id === editExerciseId; })[0];
+      if (current) Object.assign(current, data);
+    } else {
+      exercises.push(normalizeExercise("e_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8), data));
+    }
+    editExerciseId = null;
+    saveLocalExercises();
+    render();
+  }
+
+  function removeExercise(id) {
+    if (db) {
+      db.doc("exercises/" + id).delete().catch(function () { setStatus("Kunde inte ta bort övningen."); });
+      return;
+    }
+    exercises = exercises.filter(function (item) { return item.id !== id; });
+    confirmDeleteExerciseId = null;
+    saveLocalExercises();
+    render();
+  }
+
+  function renderHomeTraining() {
+    mainEl.appendChild(el("h2", { className: "section-title", text: "Övningar att göra hemma" }));
+    mainEl.appendChild(el("p", {
+      text: "Här hittar spelarna övningar att träna på egen hand. Håll det roligt och kort – en vuxen kan hjälpa till, och avbryt om något gör ont.",
+      attrs: { style: "color:var(--text-soft);font-size:14px;margin-top:-6px;" }
+    }));
+
+    var editing = exercises.filter(function (item) { return item.id === editExerciseId; })[0] || null;
+    var formPanel = el("div", { className: "panel exercise-form" });
+    formPanel.appendChild(el("h2", { className: "section-title", text: editing ? "Ändra övning" : "Lägg till övning" }));
+    var form = el("form");
+    var grid = el("div", { className: "field-grid" });
+
+    function addField(labelText, control) {
+      var wrap = el("div");
+      var label = el("label", { text: labelText });
+      label.appendChild(control);
+      wrap.appendChild(label);
+      grid.appendChild(wrap);
+    }
+
+    var nameInput = el("input", { attrs: { type: "text", maxlength: "80", required: "required", placeholder: "T.ex. Bollkontroll med båda fötterna" } });
+    nameInput.value = editing ? editing.name : "";
+    addField("Namn på övningen", nameInput);
+
+    var focusSelect = el("select");
+    ["Teknik", "Passningar", "Skott", "Bollkontroll", "Koordination", "Spelförståelse", "Annat"].forEach(function (focus) {
+      var option = el("option", { text: focus });
+      option.value = focus;
+      if (editing && editing.focus === focus) option.selected = true;
+      focusSelect.appendChild(option);
+    });
+    addField("Träningsområde", focusSelect);
+
+    var instructions = el("textarea", { attrs: { maxlength: "1200", required: "required", placeholder: "Beskriv hur övningen görs, steg för steg." } });
+    instructions.value = editing ? editing.instructions : "";
+    var instructionsWrap = el("div", { attrs: { style: "margin-top:10px;" } });
+    var instructionsLabel = el("label", { text: "Så gör du" });
+    instructionsLabel.appendChild(instructions);
+    instructionsWrap.appendChild(instructionsLabel);
+
+    var extras = el("div", { className: "field-grid" });
+    var dosageInput = el("input", { attrs: { type: "text", maxlength: "100", placeholder: "T.ex. 5 minuter" } });
+    dosageInput.value = editing ? editing.dosage : "";
+    var dosageWrap = el("div");
+    var dosageLabel = el("label", { text: "Tid eller antal" });
+    dosageLabel.appendChild(dosageInput);
+    dosageWrap.appendChild(dosageLabel);
+    extras.appendChild(dosageWrap);
+    var equipmentInput = el("input", { attrs: { type: "text", maxlength: "100", placeholder: "T.ex. fotboll och en vägg" } });
+    equipmentInput.value = editing ? editing.equipment : "";
+    var equipmentWrap = el("div");
+    var equipmentLabel = el("label", { text: "Utrustning" });
+    equipmentLabel.appendChild(equipmentInput);
+    equipmentWrap.appendChild(equipmentLabel);
+    extras.appendChild(equipmentWrap);
+
+    form.appendChild(grid);
+    form.appendChild(instructionsWrap);
+    form.appendChild(extras);
+    var actions = el("div", { className: "secondary-row" });
+    var saveBtn = el("button", { className: "primary", text: editing ? "Spara ändringar" : "Publicera övning" });
+    saveBtn.type = "submit";
+    actions.appendChild(saveBtn);
+    if (editing) {
+      var cancelBtn = el("button", { text: "Avbryt" });
+      cancelBtn.type = "button";
+      cancelBtn.addEventListener("click", function () { editExerciseId = null; render(); });
+      actions.appendChild(cancelBtn);
+    }
+    form.appendChild(actions);
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      saveExercise({
+        name: nameInput.value.trim(),
+        focus: focusSelect.value,
+        instructions: instructions.value.trim(),
+        dosage: dosageInput.value.trim(),
+        equipment: equipmentInput.value.trim()
+      });
+    });
+    formPanel.appendChild(form);
+    mainEl.appendChild(formPanel);
+
+    if (!exercises.length) {
+      mainEl.appendChild(el("div", { className: "empty-state", text: "Inga övningar ännu. Lägg till den första övningen ovan." }));
+      return;
+    }
+    var list = el("div", { className: "player-list" });
+    exercises.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "sv"); }).forEach(function (exercise) {
+      var card = el("div", { className: "panel exercise-card" });
+      var header = el("div", { attrs: { style: "display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;" } });
+      var title = el("div");
+      title.appendChild(el("h3", { text: exercise.name }));
+      title.appendChild(el("div", { className: "exercise-meta", text: [exercise.focus, exercise.dosage].filter(Boolean).join(" · ") }));
+      header.appendChild(title);
+      var buttons = el("div", { className: "row-actions" });
+      if (confirmDeleteExerciseId === exercise.id) {
+        buttons.appendChild(el("span", { text: "Ta bort?", attrs: { style: "font-size:12.5px;color:var(--danger);" } }));
+        var yesBtn = el("button", { className: "small icon-btn danger", text: "Ja" });
+        yesBtn.addEventListener("click", function () { removeExercise(exercise.id); });
+        var noBtn = el("button", { className: "small ghost", text: "Nej" });
+        noBtn.addEventListener("click", function () { confirmDeleteExerciseId = null; render(); });
+        buttons.appendChild(yesBtn);
+        buttons.appendChild(noBtn);
+      } else {
+        var editBtn = el("button", { className: "small", text: "Ändra" });
+        editBtn.addEventListener("click", function () { editExerciseId = exercise.id; confirmDeleteExerciseId = null; render(); });
+        var deleteBtn = el("button", { className: "small icon-btn danger", text: "Ta bort" });
+        deleteBtn.addEventListener("click", function () { confirmDeleteExerciseId = exercise.id; render(); });
+        buttons.appendChild(editBtn);
+        buttons.appendChild(deleteBtn);
+      }
+      header.appendChild(buttons);
+      card.appendChild(header);
+      card.appendChild(el("p", { text: exercise.instructions }));
+      if (exercise.equipment) card.appendChild(el("div", { className: "exercise-meta", text: "Utrustning: " + exercise.equipment }));
+      list.appendChild(card);
+    });
+    mainEl.appendChild(list);
   }
 
   function blankDraft() {
