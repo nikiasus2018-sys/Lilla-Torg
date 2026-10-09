@@ -67,6 +67,8 @@
   header.hero .kicker { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: var(--text-soft); font-weight: 700; }
   h1 { font-size: clamp(22px, 5vw, 28px); margin: 2px 0 6px; color: var(--accent-dark); }
   .tagline { color: var(--text-soft); font-size: 14.5px; max-width: 480px; margin: 0 auto; }
+  .home-illustration { margin: 0 auto 18px; max-width: 680px; overflow: hidden; border-radius: 18px; }
+  .home-illustration svg { display: block; width: 100%; height: auto; }
 
   .status-bar { text-align: center; font-size: 13px; color: var(--text-soft); margin-bottom: 14px; min-height: 18px; }
 
@@ -143,7 +145,7 @@
 
   h2.section-title { font-size: 16px; margin: 0 0 10px; }
 
-  .nav-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; }
+  .nav-tabs { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 18px; }
   .nav-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); font-size: 14px; font-weight: 700; padding: 9px 18px; border-radius: 999px; cursor: pointer; }
   .nav-tab.active { background: var(--black); color: white; border-color: var(--black); }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .nav-tab.active { background: var(--accent); border-color: var(--accent); } }
@@ -166,6 +168,11 @@
   .team-panel-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .team-dot { display: inline-block; width: 13px; height: 13px; border-radius: 50%; }
   .team-summary { font-size: 12.5px; color: var(--text-soft); }
+  .exercise-form textarea { width: 100%; min-height: 110px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; }
+  .exercise-form input, .exercise-form select { width: 100%; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; }
+  .exercise-card h3 { margin: 0; font-size: 17px; }
+  .exercise-card p { margin: 8px 0 0; white-space: pre-wrap; }
+  .exercise-meta { font-size: 12.5px; color: var(--text-soft); margin-top: 3px; }
 
   .pitch {
     background: linear-gradient(180deg, #2e8a44, #2a7d3f);
@@ -325,8 +332,11 @@
   var CHART_COLORS = { spelforstaelse: "#267DC1", teknik: "#8a805a", laganda: "#1a7a3d", fysik: "#C9752F", malvakt: "#6B4C8A" };
 
   var players = [];
+  var exercises = [];
   var currentFilter = "Alla";
   var view = { mode: "squad" };
+  var editExerciseId = null;
+  var confirmDeleteExerciseId = null;
   var newAssessmentOpen = false;
   var draftAssessment = null;
   var openHistoryIds = {};
@@ -401,6 +411,15 @@
     } catch (e) { return []; }
   }
   function saveLocal() { try { localStorage.setItem(localKey(), JSON.stringify(players)); } catch (e) {} }
+  function exerciseLocalKey() { return "spelarutveckling_exercises_v1"; }
+  function loadLocalExercises() {
+    try {
+      var raw = localStorage.getItem(exerciseLocalKey());
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.map(function (item) { return normalizeExercise(item.id, item); }) : [];
+    } catch (e) { return []; }
+  }
+  function saveLocalExercises() { try { localStorage.setItem(exerciseLocalKey(), JSON.stringify(exercises)); } catch (e) {} }
 
   function setStatus(msg) { statusBar.textContent = msg || ""; }
 
@@ -412,6 +431,17 @@
     var ratingsShim = null;
     if (!Array.isArray(data.assessments) && data.ratings) {
       ratingsShim = data.ratings;
+    }
+    function normalizeExercise(id, data) {
+      data = data || {};
+      return {
+        id: id || data.id || "",
+        name: String(data.name || ""),
+        focus: String(data.focus || ""),
+        instructions: String(data.instructions || ""),
+        dosage: String(data.dosage || ""),
+        equipment: String(data.equipment || "")
+      };
     }
     return {
       id: id,
@@ -829,21 +859,31 @@
   function render() {
     mainEl.innerHTML = "";
     mainEl.appendChild(renderNav());
+    if (view.mode === "squad") mainEl.appendChild(renderHomeIllustration());
     if (view.mode === "squad") renderSquad();
     else if (view.mode === "teams") renderTeams();
     else if (view.mode === "attendance") renderAttendance();
+    else if (view.mode === "exercises") renderHomeTraining();
     else renderDetail(view.id);
+  }
+
+  function renderHomeIllustration() {
+    var illustration = el("div", { className: "home-illustration", attrs: { role: "img", "aria-label": "Illustration av en ung fotbollsspelare som tränar" } });
+    illustration.innerHTML = '<svg viewBox="0 0 680 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="680" height="220" rx="18" fill="#eaf3f8"/><circle cx="550" cy="42" r="20" fill="#f1d786"/><path d="M0 174 Q150 150 310 177 T680 165V220H0Z" fill="#dcebdc"/><path d="M0 190 Q150 170 310 193 T680 181" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/><path d="M500 220a110 110 0 0 1 110-110" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/><ellipse cx="333" cy="190" rx="67" ry="10" fill="#b9d0bd"/><path d="m294 130 35 8-17 39-28 2 8-22z" fill="#f5c7a3"/><path d="m348 134 30 7 10 36-27 3-19-22z" fill="#f5c7a3"/><path d="m318 91 36 1 19 44-31 13-37-17z" fill="#267dc1"/><path d="m318 94-19 9-17 29 10 7 27-24M350 94l21 8 18 25-9 7-27-20" fill="#267dc1" stroke="#164b78" stroke-width="2" stroke-linejoin="round"/><circle cx="337" cy="73" r="20" fill="#f5c7a3"/><path d="M317 72q2-26 24-23 16 2 17 21l-8-8-26 1z" fill="#302b29"/><path d="m315 169-10 14 18 4 11-13M359 172l13 12 19-2-5-9" fill="#164b78" stroke="#164b78" stroke-width="5" stroke-linecap="round"/><circle cx="446" cy="178" r="24" fill="#fff" stroke="#164b78" stroke-width="3"/><path d="m446 163 9 6-3 11h-12l-3-11zM424 176l13 4m9 18 6-16m9-13 9-4" fill="none" stroke="#164b78" stroke-width="2.5" stroke-linecap="round"/></svg>';
+    return illustration;
   }
 
   function renderNav() {
     var nav = el("div", { className: "nav-tabs" });
-    var truppTab = el("button", { className: "nav-tab" + (view.mode !== "teams" && view.mode !== "attendance" ? " active" : ""), text: "Trupp" });
+    var truppTab = el("button", { className: "nav-tab" + (view.mode !== "teams" && view.mode !== "attendance" && view.mode !== "exercises" ? " active" : ""), text: "Trupp" });
     truppTab.addEventListener("click", function () { if (view.mode !== "squad") { view = { mode: "squad" }; render(); } });
     var teamsTab = el("button", { className: "nav-tab" + (view.mode === "teams" ? " active" : ""), text: "Laguttagning" });
     teamsTab.addEventListener("click", function () { if (view.mode !== "teams") { view = { mode: "teams" }; render(); } });
     var attTab = el("button", { className: "nav-tab" + (view.mode === "attendance" ? " active" : ""), text: "Närvaro" });
     attTab.addEventListener("click", function () { if (view.mode !== "attendance") { view = { mode: "attendance" }; render(); } });
-    nav.appendChild(truppTab); nav.appendChild(teamsTab); nav.appendChild(attTab);
+    var exercisesTab = el("button", { className: "nav-tab" + (view.mode === "exercises" ? " active" : ""), text: "Hemmaträning" });
+    exercisesTab.addEventListener("click", function () { if (view.mode !== "exercises") { view = { mode: "exercises" }; render(); } });
+    nav.appendChild(truppTab); nav.appendChild(teamsTab); nav.appendChild(attTab); nav.appendChild(exercisesTab);
     return nav;
   }
 
@@ -936,6 +976,159 @@
       listWrap.appendChild(row);
     });
     mainEl.appendChild(listWrap);
+  }
+
+  function saveExercise(data) {
+    if (db) {
+      var saveRequest = editExerciseId
+        ? db.doc("exercises/" + editExerciseId).update(data)
+        : db.collection("exercises").add(data);
+      saveRequest.then(function () { editExerciseId = null; })
+        .catch(function () { setStatus("Kunde inte spara övningen."); });
+      return;
+    }
+    if (editExerciseId) {
+      var current = exercises.filter(function (item) { return item.id === editExerciseId; })[0];
+      if (current) Object.assign(current, data);
+    } else {
+      exercises.push(normalizeExercise("e_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8), data));
+    }
+    editExerciseId = null;
+    saveLocalExercises();
+    render();
+  }
+
+  function removeExercise(id) {
+    if (db) {
+      db.doc("exercises/" + id).delete().catch(function () { setStatus("Kunde inte ta bort övningen."); });
+      return;
+    }
+    exercises = exercises.filter(function (item) { return item.id !== id; });
+    confirmDeleteExerciseId = null;
+    saveLocalExercises();
+    render();
+  }
+
+  function renderHomeTraining() {
+    mainEl.appendChild(el("h2", { className: "section-title", text: "Övningar att göra hemma" }));
+    mainEl.appendChild(el("p", {
+      text: "Här hittar spelarna övningar att träna på egen hand. Håll det roligt och kort – en vuxen kan hjälpa till, och avbryt om något gör ont.",
+      attrs: { style: "color:var(--text-soft);font-size:14px;margin-top:-6px;" }
+    }));
+
+    var editing = exercises.filter(function (item) { return item.id === editExerciseId; })[0] || null;
+    var formPanel = el("div", { className: "panel exercise-form" });
+    formPanel.appendChild(el("h2", { className: "section-title", text: editing ? "Ändra övning" : "Lägg till övning" }));
+    var form = el("form");
+    var grid = el("div", { className: "field-grid" });
+
+    function addField(labelText, control) {
+      var wrap = el("div");
+      var label = el("label", { text: labelText });
+      label.appendChild(control);
+      wrap.appendChild(label);
+      grid.appendChild(wrap);
+    }
+
+    var nameInput = el("input", { attrs: { type: "text", maxlength: "80", required: "required", placeholder: "T.ex. Bollkontroll med båda fötterna" } });
+    nameInput.value = editing ? editing.name : "";
+    addField("Namn på övningen", nameInput);
+
+    var focusSelect = el("select");
+    ["Teknik", "Passningar", "Skott", "Bollkontroll", "Koordination", "Spelförståelse", "Annat"].forEach(function (focus) {
+      var option = el("option", { text: focus });
+      option.value = focus;
+      if (editing && editing.focus === focus) option.selected = true;
+      focusSelect.appendChild(option);
+    });
+    addField("Träningsområde", focusSelect);
+
+    var instructions = el("textarea", { attrs: { maxlength: "1200", required: "required", placeholder: "Beskriv hur övningen görs, steg för steg." } });
+    instructions.value = editing ? editing.instructions : "";
+    var instructionsWrap = el("div", { attrs: { style: "margin-top:10px;" } });
+    var instructionsLabel = el("label", { text: "Så gör du" });
+    instructionsLabel.appendChild(instructions);
+    instructionsWrap.appendChild(instructionsLabel);
+
+    var extras = el("div", { className: "field-grid" });
+    var dosageInput = el("input", { attrs: { type: "text", maxlength: "100", placeholder: "T.ex. 5 minuter" } });
+    dosageInput.value = editing ? editing.dosage : "";
+    var dosageWrap = el("div");
+    var dosageLabel = el("label", { text: "Tid eller antal" });
+    dosageLabel.appendChild(dosageInput);
+    dosageWrap.appendChild(dosageLabel);
+    extras.appendChild(dosageWrap);
+    var equipmentInput = el("input", { attrs: { type: "text", maxlength: "100", placeholder: "T.ex. fotboll och en vägg" } });
+    equipmentInput.value = editing ? editing.equipment : "";
+    var equipmentWrap = el("div");
+    var equipmentLabel = el("label", { text: "Utrustning" });
+    equipmentLabel.appendChild(equipmentInput);
+    equipmentWrap.appendChild(equipmentLabel);
+    extras.appendChild(equipmentWrap);
+
+    form.appendChild(grid);
+    form.appendChild(instructionsWrap);
+    form.appendChild(extras);
+    var actions = el("div", { className: "secondary-row" });
+    var saveBtn = el("button", { className: "primary", text: editing ? "Spara ändringar" : "Publicera övning" });
+    saveBtn.type = "submit";
+    actions.appendChild(saveBtn);
+    if (editing) {
+      var cancelBtn = el("button", { text: "Avbryt" });
+      cancelBtn.type = "button";
+      cancelBtn.addEventListener("click", function () { editExerciseId = null; render(); });
+      actions.appendChild(cancelBtn);
+    }
+    form.appendChild(actions);
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      saveExercise({
+        name: nameInput.value.trim(),
+        focus: focusSelect.value,
+        instructions: instructions.value.trim(),
+        dosage: dosageInput.value.trim(),
+        equipment: equipmentInput.value.trim()
+      });
+    });
+    formPanel.appendChild(form);
+    mainEl.appendChild(formPanel);
+
+    if (!exercises.length) {
+      mainEl.appendChild(el("div", { className: "empty-state", text: "Inga övningar ännu. Lägg till den första övningen ovan." }));
+      return;
+    }
+    var list = el("div", { className: "player-list" });
+    exercises.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "sv"); }).forEach(function (exercise) {
+      var card = el("div", { className: "panel exercise-card" });
+      var header = el("div", { attrs: { style: "display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;" } });
+      var title = el("div");
+      title.appendChild(el("h3", { text: exercise.name }));
+      title.appendChild(el("div", { className: "exercise-meta", text: [exercise.focus, exercise.dosage].filter(Boolean).join(" · ") }));
+      header.appendChild(title);
+      var buttons = el("div", { className: "row-actions" });
+      if (confirmDeleteExerciseId === exercise.id) {
+        buttons.appendChild(el("span", { text: "Ta bort?", attrs: { style: "font-size:12.5px;color:var(--danger);" } }));
+        var yesBtn = el("button", { className: "small icon-btn danger", text: "Ja" });
+        yesBtn.addEventListener("click", function () { removeExercise(exercise.id); });
+        var noBtn = el("button", { className: "small ghost", text: "Nej" });
+        noBtn.addEventListener("click", function () { confirmDeleteExerciseId = null; render(); });
+        buttons.appendChild(yesBtn);
+        buttons.appendChild(noBtn);
+      } else {
+        var editBtn = el("button", { className: "small", text: "Ändra" });
+        editBtn.addEventListener("click", function () { editExerciseId = exercise.id; confirmDeleteExerciseId = null; render(); });
+        var deleteBtn = el("button", { className: "small icon-btn danger", text: "Ta bort" });
+        deleteBtn.addEventListener("click", function () { confirmDeleteExerciseId = exercise.id; render(); });
+        buttons.appendChild(editBtn);
+        buttons.appendChild(deleteBtn);
+      }
+      header.appendChild(buttons);
+      card.appendChild(header);
+      card.appendChild(el("p", { text: exercise.instructions }));
+      if (exercise.equipment) card.appendChild(el("div", { className: "exercise-meta", text: "Utrustning: " + exercise.equipment }));
+      list.appendChild(card);
+    });
+    mainEl.appendChild(list);
   }
 
   function blankDraft() {
@@ -1641,6 +1834,10 @@
       players = snap.docs.map(function (d) { return normalizePlayer(d.id, d.data()); });
       render();
     }, function () { setStatus("Kunde inte ladda data just nu."); });
+    db.collection("exercises").onSnapshot(function (snap) {
+      exercises = snap.docs.map(function (d) { return normalizeExercise(d.id, d.data()); });
+      render();
+    }, function () { setStatus("Kunde inte ladda övningarna just nu."); });
   }
 
   // ---------- Firebase adapter ----------
@@ -1720,6 +1917,7 @@
     } catch (e) {
       storageMode = "local";
       players = loadLocal().map(function (p) { return normalizePlayer(p.id, p); });
+      exercises = loadLocalExercises();
       setStatus("Kunde inte ansluta till Firebase – sparar lokalt i den här webbläsaren.");
       render();
     }

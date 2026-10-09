@@ -3,6 +3,10 @@
     "players": {
       ".read": true,
       ".write": true
+    },
+    "exercises": {
+      ".read": true,
+      ".write": true
     }
   }
 }
