@@ -67,6 +67,8 @@
   header.hero .kicker { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: var(--text-soft); font-weight: 700; }
   h1 { font-size: clamp(22px, 5vw, 28px); margin: 2px 0 6px; color: var(--accent-dark); }
   .tagline { color: var(--text-soft); font-size: 14.5px; max-width: 480px; margin: 0 auto; }
+  .home-illustration { margin: 0 auto 18px; max-width: 680px; overflow: hidden; border-radius: 18px; }
+  .home-illustration svg { display: block; width: 100%; height: auto; }
 
   .status-bar { text-align: center; font-size: 13px; color: var(--text-soft); margin-bottom: 14px; min-height: 18px; }
 
@@ -857,11 +859,18 @@
   function render() {
     mainEl.innerHTML = "";
     mainEl.appendChild(renderNav());
+    if (view.mode === "squad") mainEl.appendChild(renderHomeIllustration());
     if (view.mode === "squad") renderSquad();
     else if (view.mode === "teams") renderTeams();
     else if (view.mode === "attendance") renderAttendance();
     else if (view.mode === "exercises") renderHomeTraining();
     else renderDetail(view.id);
+  }
+
+  function renderHomeIllustration() {
+    var illustration = el("div", { className: "home-illustration", attrs: { role: "img", "aria-label": "Illustration av en ung fotbollsspelare som tränar" } });
+    illustration.innerHTML = '<svg viewBox="0 0 680 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="680" height="220" rx="18" fill="#eaf3f8"/><circle cx="550" cy="42" r="20" fill="#f1d786"/><path d="M0 174 Q150 150 310 177 T680 165V220H0Z" fill="#dcebdc"/><path d="M0 190 Q150 170 310 193 T680 181" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/><path d="M500 220a110 110 0 0 1 110-110" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/><ellipse cx="333" cy="190" rx="67" ry="10" fill="#b9d0bd"/><path d="m294 130 35 8-17 39-28 2 8-22z" fill="#f5c7a3"/><path d="m348 134 30 7 10 36-27 3-19-22z" fill="#f5c7a3"/><path d="m318 91 36 1 19 44-31 13-37-17z" fill="#267dc1"/><path d="m318 94-19 9-17 29 10 7 27-24M350 94l21 8 18 25-9 7-27-20" fill="#267dc1" stroke="#164b78" stroke-width="2" stroke-linejoin="round"/><circle cx="337" cy="73" r="20" fill="#f5c7a3"/><path d="M317 72q2-26 24-23 16 2 17 21l-8-8-26 1z" fill="#302b29"/><path d="m315 169-10 14 18 4 11-13M359 172l13 12 19-2-5-9" fill="#164b78" stroke="#164b78" stroke-width="5" stroke-linecap="round"/><circle cx="446" cy="178" r="24" fill="#fff" stroke="#164b78" stroke-width="3"/><path d="m446 163 9 6-3 11h-12l-3-11zM424 176l13 4m9 18 6-16m9-13 9-4" fill="none" stroke="#164b78" stroke-width="2.5" stroke-linecap="round"/></svg>';
+    return illustration;
   }
 
   function renderNav() {
